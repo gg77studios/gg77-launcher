@@ -211,6 +211,11 @@ pub fn run() {
                         std::thread::sleep(std::time::Duration::from_secs(4));
                         let r = packages::install_game(app.clone(), "autoteste".into(), manifest).await;
                         eprintln!("[gg77] autoteste: instalação {r:?}");
+                        // GG77_AUTOTEST_UPDATE=<manifesto da versão seguinte>: atualiza em seguida (patch)
+                        if let Ok(update) = std::env::var("GG77_AUTOTEST_UPDATE") {
+                            let r = packages::install_game(app.clone(), "autoteste".into(), update).await;
+                            eprintln!("[gg77] autoteste: atualização {r:?}");
+                        }
                         let r = launch_installed_game(app.clone(), "autoteste".into(), "Autoteste".into());
                         eprintln!("[gg77] autoteste: janela aberta {r:?}");
                         std::thread::sleep(std::time::Duration::from_secs(8));

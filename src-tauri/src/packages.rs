@@ -1,6 +1,11 @@
 //! Jogos instalados: o launcher baixa um pacote (zip) descrito por um manifesto assinado,
 //! confere sha256 + assinatura ed25519, extrai numa pasta por versão e serve os arquivos
 //! pelo protocolo `gg77game://localhost/<jogo>/...`.
+//!
+//! Manifesto v2 (launcher 0.4.0+): além do zip completo, traz a lista de arquivos com sha256 e
+//! patches ("só o que mudou desde a versão X"). Quem tem a versão X instalada baixa o patch e
+//! copia o resto da pasta atual; cada arquivo final é conferido contra a lista assinada. Os
+//! campos v1 continuam lá, então o launcher 0.3.0 segue instalando pelo zip completo.
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use ed25519_dalek::{Signature, VerifyingKey};
@@ -30,6 +35,33 @@ pub struct Manifest {
     pub signature: String,
     #[serde(default)]
     pub min_launcher: Option<String>,
+    /// v2: todos os arquivos da versão (caminho relativo, sha256, tamanho)
+    #[serde(default)]
+    pub files: Vec<FileEntry>,
+    /// v2: zips só com o que mudou desde uma versão anterior
+    #[serde(default)]
+    pub patches: Vec<Patch>,
+    /// v2: assinatura ed25519 (base64) de `signed_message_v2`, que cobre arquivos e patches
+    #[serde(default)]
+    pub signature_v2: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FileEntry {
+    pub path: String,
+    pub sha256: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Patch {
+    /// versão instalada que este patch atualiza
+    pub from: String,
+    pub url: String,
+    pub sha256: String,
+    pub size: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,7 +132,29 @@ pub fn signed_message(m: &Manifest) -> String {
     format!("{}\n{}\n{}", m.id, m.version, m.sha256.to_lowercase())
 }
 
-pub fn verify_signature(m: &Manifest, public_key_b64: &str) -> Result<(), String> {
+/// Resumo da lista de arquivos e patches, em texto canônico (o empacotador em Node gera o
+/// mesmo): linhas `f\t<caminho>\t<sha256>\t<tamanho>` ordenadas por caminho, depois
+/// `p\t<de>\t<url>\t<sha256>\t<tamanho>` ordenadas pela versão de origem.
+pub fn content_digest(m: &Manifest) -> String {
+    let mut files: Vec<&FileEntry> = m.files.iter().collect();
+    files.sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
+    let mut patches: Vec<&Patch> = m.patches.iter().collect();
+    patches.sort_by(|a, b| a.from.as_bytes().cmp(b.from.as_bytes()));
+    let mut h = Sha256::new();
+    for f in files {
+        h.update(format!("f\t{}\t{}\t{}\n", f.path, f.sha256.to_lowercase(), f.size));
+    }
+    for p in patches {
+        h.update(format!("p\t{}\t{}\t{}\t{}\n", p.from, p.url, p.sha256.to_lowercase(), p.size));
+    }
+    hex::encode(h.finalize())
+}
+
+pub fn signed_message_v2(m: &Manifest) -> String {
+    format!("gg77-v2\n{}\n{}\n{}\n{}", m.id, m.version, m.sha256.to_lowercase(), content_digest(m))
+}
+
+fn verify_bytes(message: &str, signature_b64: &str, public_key_b64: &str) -> Result<(), String> {
     let key_bytes: [u8; 32] = B64
         .decode(public_key_b64)
         .map_err(|_| "chave pública inválida")?
@@ -108,13 +162,25 @@ pub fn verify_signature(m: &Manifest, public_key_b64: &str) -> Result<(), String
         .map_err(|_| "chave pública com tamanho errado")?;
     let key = VerifyingKey::from_bytes(&key_bytes).map_err(|_| "chave pública inválida")?;
     let sig_bytes: [u8; 64] = B64
-        .decode(m.signature.trim())
+        .decode(signature_b64.trim())
         .map_err(|_| "assinatura ilegível")?
         .try_into()
         .map_err(|_| "assinatura com tamanho errado")?;
     let sig = Signature::from_bytes(&sig_bytes);
-    key.verify_strict(signed_message(m).as_bytes(), &sig)
+    key.verify_strict(message.as_bytes(), &sig)
         .map_err(|_| "assinatura do pacote não confere".to_string())
+}
+
+/// Confere a assinatura certa: v2 quando o manifesto traz arquivos ou patches (eles só valem
+/// assinados), senão a v1 (só o zip completo).
+pub fn verify_signature(m: &Manifest, public_key_b64: &str) -> Result<(), String> {
+    match &m.signature_v2 {
+        Some(sig) => verify_bytes(&signed_message_v2(m), sig, public_key_b64),
+        None if !m.files.is_empty() || !m.patches.is_empty() => {
+            Err("manifesto com lista de arquivos sem assinatura v2".into())
+        }
+        None => verify_bytes(&signed_message(m), &m.signature, public_key_b64),
+    }
 }
 
 /// Compara versões x.y.z (partes que faltam contam como 0).
@@ -130,6 +196,7 @@ pub fn version_lt(a: &str, b: &str) -> bool {
     false
 }
 
+/// Baixa o manifesto; devolve também o endereço dele, base dos endereços relativos.
 async fn fetch_manifest(url: &str) -> Result<(Manifest, reqwest::Url), String> {
     let base = reqwest::Url::parse(url).map_err(|_| "endereço do manifesto inválido")?;
     let text = reqwest::get(base.clone())
@@ -141,8 +208,20 @@ async fn fetch_manifest(url: &str) -> Result<(Manifest, reqwest::Url), String> {
         .await
         .map_err(|e| e.to_string())?;
     let m: Manifest = serde_json::from_str(&text).map_err(|_| "manifesto em formato inválido")?;
-    let zip_url = base.join(&m.url).map_err(|_| "endereço do pacote inválido")?;
-    Ok((m, zip_url))
+    Ok((m, base))
+}
+
+fn resolve(base: &reqwest::Url, url: &str) -> Result<reqwest::Url, String> {
+    base.join(url).map_err(|_| "endereço do pacote inválido".to_string())
+}
+
+/// Patch que leva da versão instalada à do manifesto, se houver um e a lista de arquivos vier junto.
+fn patch_for<'a>(m: &'a Manifest, installed: Option<&str>) -> Option<&'a Patch> {
+    let from = installed?;
+    if m.files.is_empty() {
+        return None;
+    }
+    m.patches.iter().find(|p| p.from == from)
 }
 
 fn now() -> u64 {
@@ -163,8 +242,17 @@ fn safe_relative(path: &str) -> Option<PathBuf> {
     (!out.as_os_str().is_empty()).then_some(out)
 }
 
-/// Extrai o zip para `dest`, devolvendo o sha256 de cada arquivo (para "verificar arquivos").
+/// Extrai o zip completo para `dest` (precisa ter index.html), devolvendo o sha256 de cada arquivo.
 pub fn extract_zip(zip_path: &Path, dest: &Path) -> Result<BTreeMap<String, String>, String> {
+    let hashes = extract_files(zip_path, dest)?;
+    if !dest.join("index.html").is_file() {
+        return Err("pacote sem index.html".into());
+    }
+    Ok(hashes)
+}
+
+/// Extrai qualquer zip do jogo (completo ou patch) para `dest`, com proteção contra zip-slip.
+fn extract_files(zip_path: &Path, dest: &Path) -> Result<BTreeMap<String, String>, String> {
     let file = fs::File::open(zip_path).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(file).map_err(|_| "pacote corrompido")?;
     let mut hashes = BTreeMap::new();
@@ -188,10 +276,131 @@ pub fn extract_zip(zip_path: &Path, dest: &Path) -> Result<BTreeMap<String, Stri
         let key = rel.to_string_lossy().replace('\\', "/");
         hashes.insert(key, hex::encode(Sha256::digest(&buf)));
     }
+    Ok(hashes)
+}
+
+/// A pasta extraída tem exatamente os arquivos da lista assinada, com os mesmos sha256?
+fn check_against_list(hashes: &BTreeMap<String, String>, files: &[FileEntry]) -> Result<(), String> {
+    if hashes.len() != files.len() {
+        return Err("o pacote não tem os mesmos arquivos da lista assinada".into());
+    }
+    for f in files {
+        match hashes.get(&f.path) {
+            Some(h) if h.eq_ignore_ascii_case(&f.sha256) => {}
+            _ => return Err(format!("arquivo não confere com a lista assinada: {}", f.path)),
+        }
+    }
+    Ok(())
+}
+
+/// Monta a versão nova em `dest`: arquivos do patch + o resto copiado da versão instalada
+/// (`old_root`). Cada arquivo final é conferido contra a lista assinada; arquivos que saíram
+/// da versão simplesmente não são copiados. Devolve o sha256 de cada arquivo.
+pub fn apply_patch(old_root: &Path, patch_zip: &Path, files: &[FileEntry], dest: &Path) -> Result<BTreeMap<String, String>, String> {
+    let from_patch = extract_files(patch_zip, dest)?;
+    let wanted: BTreeMap<&str, &FileEntry> = files.iter().map(|f| (f.path.as_str(), f)).collect();
+    if let Some(extra) = from_patch.keys().find(|k| !wanted.contains_key(k.as_str())) {
+        return Err(format!("o patch traz um arquivo fora da lista: {extra}"));
+    }
+    let mut hashes = BTreeMap::new();
+    for f in files {
+        let rel = safe_relative(&f.path).ok_or_else(|| format!("caminho inválido na lista: {}", f.path))?;
+        let out = dest.join(&rel);
+        let hash = match from_patch.get(&f.path) {
+            Some(h) => h.clone(),
+            None => {
+                let src = old_root.join(&rel);
+                if let Some(parent) = out.parent() {
+                    fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                }
+                // hardlink é instantâneo; em outro disco ou sistema sem suporte, copia
+                if fs::hard_link(&src, &out).is_err() {
+                    fs::copy(&src, &out).map_err(|_| format!("arquivo da versão instalada sumiu: {}", f.path))?;
+                }
+                let buf = fs::read(&out).map_err(|e| e.to_string())?;
+                hex::encode(Sha256::digest(&buf))
+            }
+        };
+        if !hash.eq_ignore_ascii_case(&f.sha256) {
+            return Err(format!("arquivo não confere depois do patch: {}", f.path));
+        }
+        hashes.insert(f.path.clone(), hash);
+    }
     if !dest.join("index.html").is_file() {
-        return Err("pacote sem index.html".into());
+        return Err("versão sem index.html".into());
     }
     Ok(hashes)
+}
+
+/// Baixa `url` para `part`, retomando de onde parou se o arquivo parcial já existir e o
+/// servidor aceitar Range. Confere sha256 do arquivo inteiro no fim.
+async fn download<R: Runtime>(
+    app: &AppHandle<R>,
+    game_id: &str,
+    url: reqwest::Url,
+    part: &Path,
+    sha256: &str,
+    size: u64,
+) -> Result<u64, String> {
+    let mut hasher = Sha256::new();
+    let mut received: u64 = 0;
+    if let Ok(existing) = fs::read(part) {
+        if (existing.len() as u64) < size {
+            hasher.update(&existing);
+            received = existing.len() as u64;
+        }
+    }
+    let client = reqwest::Client::new();
+    let mut req = client.get(url.clone());
+    if received > 0 {
+        req = req.header(reqwest::header::RANGE, format!("bytes={received}-"));
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("falha ao baixar ({e})"))?
+        .error_for_status()
+        .map_err(|e| format!("pacote indisponível ({e})"))?;
+    // sem 206 o servidor mandou o arquivo inteiro: recomeça do zero
+    let mut file = if received > 0 && resp.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+        fs::OpenOptions::new().append(true).open(part).map_err(|e| e.to_string())?
+    } else {
+        hasher = Sha256::new();
+        received = 0;
+        fs::File::create(part).map_err(|e| e.to_string())?
+    };
+    let total = size.max(received + resp.content_length().unwrap_or(0));
+    let mut last = Instant::now();
+    let mut stream = resp.bytes_stream();
+    emit_progress(app, game_id, "download", received, total);
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("download interrompido ({e}); clique de novo para continuar"))?;
+        file.write_all(&chunk).map_err(|e| e.to_string())?;
+        hasher.update(&chunk);
+        received += chunk.len() as u64;
+        if last.elapsed().as_millis() > 150 {
+            emit_progress(app, game_id, "download", received, total);
+            last = Instant::now();
+        }
+    }
+    file.flush().map_err(|e| e.to_string())?;
+    drop(file);
+    let digest = hex::encode(hasher.finalize());
+    if !digest.eq_ignore_ascii_case(sha256.trim()) {
+        let _ = fs::remove_file(part);
+        return Err("o arquivo baixado não confere (sha256); tente de novo".into());
+    }
+    Ok(received)
+}
+
+/// Grava a lista de hashes, troca a pasta temporária pela final e ativa a versão.
+fn finish_install(dir: &Path, tmp: &Path, version: &str, sha256: &str, hashes: &BTreeMap<String, String>) -> Result<(), String> {
+    fs::write(tmp.join(".gg77-files.json"), serde_json::to_vec(hashes).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    let final_dir = dir.join("versions").join(version_dir(version));
+    let _ = fs::remove_dir_all(&final_dir);
+    fs::rename(tmp, &final_dir).map_err(|e| e.to_string())?;
+    activate(dir, version, sha256)
 }
 
 /// Torna `version` a versão ativa e apaga as outras (escrita atômica do active.json).
@@ -225,9 +434,10 @@ pub async fn check_game<R: Runtime>(app: AppHandle<R>, game_id: String, manifest
     match fetch_manifest(&manifest_url).await {
         Ok((m, _)) => Ok(GameStatus {
             update_available: installed.as_deref().is_some_and(|v| version_lt(v, &m.version)),
+            // atualização por patch baixa só o que mudou
+            size: Some(patch_for(&m, installed.as_deref()).map_or(m.size, |p| p.size)),
             installed,
             latest: Some(m.version),
-            size: Some(m.size),
             error: None,
         }),
         Err(e) => Ok(GameStatus { installed, latest: None, size: None, update_available: false, error: Some(e) }),
@@ -236,11 +446,12 @@ pub async fn check_game<R: Runtime>(app: AppHandle<R>, game_id: String, manifest
 
 #[tauri::command]
 pub async fn install_game<R: Runtime>(app: AppHandle<R>, game_id: String, manifest_url: String) -> Result<String, String> {
-    let (m, zip_url) = fetch_manifest(&manifest_url).await?;
+    let (m, base) = fetch_manifest(&manifest_url).await?;
     if slug(&m.id) != slug(&game_id) {
         return Err("o manifesto é de outro jogo".into());
     }
-    // a assinatura cobre id, versão e sha256: confere antes de baixar qualquer coisa
+    // a assinatura cobre id, versão, sha256 do zip e (v2) cada arquivo e patch: confere antes
+    // de baixar qualquer coisa
     verify_signature(&m, PUBLIC_KEY_B64)?;
     if let Some(min) = &m.min_launcher {
         let mine = app.package_info().version.to_string();
@@ -251,68 +462,77 @@ pub async fn install_game<R: Runtime>(app: AppHandle<R>, game_id: String, manife
 
     let dir = game_dir(&app, &game_id)?;
     fs::create_dir_all(dir.join("versions")).map_err(|e| e.to_string())?;
-    let download = dir.join("download.zip.part");
+    let installed = read_active(&dir).map(|a| a.version).filter(|_| active_root(&app, &game_id).is_some());
 
-    let resp = reqwest::get(zip_url)
-        .await
-        .map_err(|e| format!("falha ao baixar ({e})"))?
-        .error_for_status()
-        .map_err(|e| format!("pacote indisponível ({e})"))?;
-    let total = resp.content_length().unwrap_or(m.size);
-    let mut file = fs::File::create(&download).map_err(|e| e.to_string())?;
-    let mut hasher = Sha256::new();
-    let mut received: u64 = 0;
-    let mut last = Instant::now();
-    let mut stream = resp.bytes_stream();
-    emit_progress(&app, &game_id, "download", 0, total);
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("download interrompido ({e})"))?;
-        file.write_all(&chunk).map_err(|e| e.to_string())?;
-        hasher.update(&chunk);
-        received += chunk.len() as u64;
-        if last.elapsed().as_millis() > 150 {
-            emit_progress(&app, &game_id, "download", received, total);
-            last = Instant::now();
+    if let (Some(p), Some(old_root)) = (patch_for(&m, installed.as_deref()), active_root(&app, &game_id)) {
+        match install_patch(&app, &game_id, &m, &base, p, &dir, old_root).await {
+            Ok(()) => {
+                #[cfg(debug_assertions)]
+                eprintln!("[gg77] {game_id}: patch {} -> {} aplicado ({} bytes)", p.from, m.version, p.size);
+                return Ok(m.version);
+            }
+            // patch falhou (arquivo local mexido, patch corrompido...): segue pelo zip completo
+            Err(e) => eprintln!("[gg77] patch {} -> {} falhou: {e}; baixando o jogo completo", p.from, m.version),
         }
     }
-    file.flush().map_err(|e| e.to_string())?;
-    drop(file);
 
-    let digest = hex::encode(hasher.finalize());
-    if !digest.eq_ignore_ascii_case(m.sha256.trim()) {
-        let _ = fs::remove_file(&download);
-        return Err("o arquivo baixado não confere (sha256); tente de novo".into());
-    }
+    let part = dir.join(format!("full-{}.zip.part", &m.sha256.get(..16).unwrap_or("x")));
+    let received = download(&app, &game_id, resolve(&base, &m.url)?, &part, &m.sha256, m.size).await?;
 
-    emit_progress(&app, &game_id, "extract", received, total);
-    let version = m.version.clone();
-    let dir2 = dir.clone();
-    let download2 = download.clone();
-    let sha = digest.clone();
+    emit_progress(&app, &game_id, "extract", received, received);
+    let (version, sha, files) = (m.version.clone(), m.sha256.to_lowercase(), m.files.clone());
+    let (dir2, part2) = (dir.clone(), part.clone());
     tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
         let tmp = dir2.join("versions").join(format!("{}.tmp", version_dir(&version)));
-        let final_dir = dir2.join("versions").join(version_dir(&version));
         let _ = fs::remove_dir_all(&tmp);
-        let hashes = match extract_zip(&download2, &tmp) {
-            Ok(h) => h,
-            Err(e) => {
-                let _ = fs::remove_dir_all(&tmp);
-                return Err(e);
+        let result = extract_zip(&part2, &tmp).and_then(|hashes| {
+            if !files.is_empty() {
+                check_against_list(&hashes, &files)?;
             }
-        };
-        fs::write(tmp.join(".gg77-files.json"), serde_json::to_vec(&hashes).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
-        let _ = fs::remove_dir_all(&final_dir);
-        fs::rename(&tmp, &final_dir).map_err(|e| e.to_string())?;
-        activate(&dir2, &version, &sha)?;
-        let _ = fs::remove_file(&download2);
-        Ok(())
+            finish_install(&dir2, &tmp, &version, &sha, &hashes)
+        });
+        if result.is_err() {
+            let _ = fs::remove_dir_all(&tmp);
+        }
+        let _ = fs::remove_file(&part2);
+        result
     })
     .await
     .map_err(|e| e.to_string())??;
 
-    emit_progress(&app, &game_id, "done", received, total);
+    emit_progress(&app, &game_id, "done", received, received);
     Ok(m.version)
+}
+
+async fn install_patch<R: Runtime>(
+    app: &AppHandle<R>,
+    game_id: &str,
+    m: &Manifest,
+    base: &reqwest::Url,
+    p: &Patch,
+    dir: &Path,
+    old_root: PathBuf,
+) -> Result<(), String> {
+    let part = dir.join(format!("patch-{}.zip.part", &p.sha256.get(..16).unwrap_or("x")));
+    let received = download(app, game_id, resolve(base, &p.url)?, &part, &p.sha256, p.size).await?;
+    emit_progress(app, game_id, "extract", received, received);
+    let (version, sha, files) = (m.version.clone(), m.sha256.to_lowercase(), m.files.clone());
+    let (dir2, part2) = (dir.to_path_buf(), part.clone());
+    tauri::async_runtime::spawn_blocking(move || -> Result<(), String> {
+        let tmp = dir2.join("versions").join(format!("{}.tmp", version_dir(&version)));
+        let _ = fs::remove_dir_all(&tmp);
+        let result = apply_patch(&old_root, &part2, &files, &tmp)
+            .and_then(|hashes| finish_install(&dir2, &tmp, &version, &sha, &hashes));
+        if result.is_err() {
+            let _ = fs::remove_dir_all(&tmp);
+        }
+        let _ = fs::remove_file(&part2);
+        result
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    emit_progress(app, game_id, "done", received, received);
+    Ok(())
 }
 
 #[tauri::command]
@@ -436,7 +656,126 @@ mod tests {
             size: 10,
             signature: String::new(),
             min_launcher: None,
+            files: Vec::new(),
+            patches: Vec::new(),
+            signature_v2: None,
         }
+    }
+
+    fn sha(b: &[u8]) -> String {
+        hex::encode(Sha256::digest(b))
+    }
+
+    fn entry(path: &str, body: &[u8]) -> FileEntry {
+        FileEntry { path: path.into(), sha256: sha(body), size: body.len() as u64 }
+    }
+
+    fn write_zip(path: &Path, files: &[(&str, &[u8])]) {
+        let mut z = zip::ZipWriter::new(fs::File::create(path).unwrap());
+        let opts = zip::write::SimpleFileOptions::default();
+        for (name, body) in files {
+            z.start_file(*name, opts).unwrap();
+            z.write_all(body).unwrap();
+        }
+        z.finish().unwrap();
+    }
+
+    fn temp(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("gg77-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn signature_v2_covers_files_and_patches() {
+        let key = SigningKey::from_bytes(&[7u8; 32]);
+        let pub_b64 = B64.encode(key.verifying_key().to_bytes());
+        let mut m = manifest();
+        m.files = vec![entry("index.html", b"<html>"), entry("assets/a.js", b"1")];
+        m.patches = vec![Patch { from: "1.2.2".into(), url: "p.zip".into(), sha256: "ef".repeat(32), size: 3 }];
+        m.signature_v2 = Some(B64.encode(key.sign(signed_message_v2(&m).as_bytes()).to_bytes()));
+        assert!(verify_signature(&m, &pub_b64).is_ok());
+        // a ordem da lista não muda o resumo
+        let mut reordered = m.clone();
+        reordered.files.reverse();
+        assert!(verify_signature(&reordered, &pub_b64).is_ok());
+        let mut other = m.clone();
+        other.files[1].sha256 = "00".repeat(32);
+        assert!(verify_signature(&other, &pub_b64).is_err());
+        let mut other = m.clone();
+        other.patches[0].url = "https://evil/p.zip".into();
+        assert!(verify_signature(&other, &pub_b64).is_err());
+        // lista de arquivos sem assinatura v2 não vale, mesmo com a v1 certa
+        let mut unsigned = m.clone();
+        unsigned.signature_v2 = None;
+        signed(&mut unsigned, &key);
+        assert!(verify_signature(&unsigned, &pub_b64).is_err());
+    }
+
+    #[test]
+    fn patch_only_for_the_installed_version() {
+        let mut m = manifest();
+        m.patches = vec![Patch { from: "1.2.2".into(), url: "p.zip".into(), sha256: "ef".repeat(32), size: 3 }];
+        // sem lista de arquivos não há como conferir o resultado: nada de patch
+        assert!(patch_for(&m, Some("1.2.2")).is_none());
+        m.files = vec![entry("index.html", b"<html>")];
+        assert!(patch_for(&m, Some("1.2.2")).is_some());
+        assert!(patch_for(&m, Some("1.2.0")).is_none());
+        assert!(patch_for(&m, None).is_none());
+    }
+
+    #[test]
+    fn applies_patch_and_refuses_tampering() {
+        let dir = temp("patch");
+        let old = dir.join("old");
+        fs::create_dir_all(old.join("assets")).unwrap();
+        fs::write(old.join("index.html"), b"<html>1</html>").unwrap();
+        fs::write(old.join("assets/music.mp3"), b"MUSIC").unwrap();
+        fs::write(old.join("assets/app-1.js"), b"v1").unwrap();
+        fs::write(old.join("assets/gone.png"), b"old art").unwrap();
+
+        // versão nova: index e js mudam, música fica, gone.png sai
+        let files = vec![
+            entry("index.html", b"<html>2</html>"),
+            entry("assets/app-2.js", b"v2"),
+            entry("assets/music.mp3", b"MUSIC"),
+        ];
+        let patch = dir.join("patch.zip");
+        write_zip(&patch, &[("index.html", b"<html>2</html>"), ("assets/app-2.js", b"v2")]);
+        let out = dir.join("new");
+        let hashes = apply_patch(&old, &patch, &files, &out).unwrap();
+        assert_eq!(hashes.len(), 3);
+        assert_eq!(fs::read(out.join("assets/music.mp3")).unwrap(), b"MUSIC");
+        assert_eq!(fs::read(out.join("index.html")).unwrap(), b"<html>2</html>");
+        assert!(!out.join("assets/gone.png").exists());
+        assert!(!out.join("assets/app-1.js").exists());
+
+        // arquivo local alterado: a cópia não confere com a lista
+        fs::write(old.join("assets/music.mp3"), b"HACKED").unwrap();
+        assert!(apply_patch(&old, &patch, &files, &dir.join("new2")).is_err());
+
+        // patch com arquivo fora da lista
+        fs::write(old.join("assets/music.mp3"), b"MUSIC").unwrap();
+        let evil = dir.join("evil.zip");
+        write_zip(&evil, &[("index.html", b"<html>2</html>"), ("assets/app-2.js", b"v2"), ("cheat.js", b"x")]);
+        assert!(apply_patch(&old, &evil, &files, &dir.join("new3")).is_err());
+
+        // patch com conteúdo diferente do assinado
+        let wrong = dir.join("wrong.zip");
+        write_zip(&wrong, &[("index.html", b"<html>X</html>"), ("assets/app-2.js", b"v2")]);
+        assert!(apply_patch(&old, &wrong, &files, &dir.join("new4")).is_err());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn full_zip_must_match_the_list() {
+        let mut hashes = BTreeMap::new();
+        hashes.insert("index.html".to_string(), sha(b"<html>"));
+        let files = vec![entry("index.html", b"<html>")];
+        assert!(check_against_list(&hashes, &files).is_ok());
+        hashes.insert("extra.js".to_string(), sha(b"x"));
+        assert!(check_against_list(&hashes, &files).is_err());
     }
 
     #[test]

@@ -275,7 +275,12 @@ export function LibraryView() {
   );
 }
 
-const fmtMb = (bytes?: number | null) => (bytes ? `${(bytes / 1048576).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB` : "");
+// atualização por patch costuma ter poucos KB: abaixo de 1 MB mostra em KB
+const fmtMb = (bytes?: number | null) => {
+  if (!bytes) return "";
+  if (bytes < 1048576) return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("pt-BR")} KB`;
+  return `${(bytes / 1048576).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB`;
+};
 
 function primaryAction(game: Game, pkg: PackageState | undefined, isRunning: boolean) {
   const play = { icon: <Play size={20} weight="fill" aria-hidden />, label: isRunning ? "Ir para o jogo" : "Jogar" };
