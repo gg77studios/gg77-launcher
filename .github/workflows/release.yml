@@ -21,6 +21,9 @@ jobs:
           - platform: ubuntu-22.04
             args: ""
     runs-on: ${{ matrix.platform }}
+    env:
+      # sem o secret da chave de atualização a release sai mesmo assim, só sem os arquivos de update
+      HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +45,13 @@ jobs:
           workspaces: "./src-tauri -> target"
 
       - run: npm ci
+
+      - name: Sem chave de atualização, release sem arquivos de update
+        if: env.HAS_UPDATER_KEY != 'true'
+        shell: bash
+        run: |
+          node -e "const f='src-tauri/tauri.conf.json';const fs=require('fs');const c=JSON.parse(fs.readFileSync(f,'utf8'));c.bundle.createUpdaterArtifacts=false;fs.writeFileSync(f,JSON.stringify(c,null,2))"
+          echo "::warning::TAURI_SIGNING_PRIVATE_KEY ausente: esta release não gera latest.json (o launcher instalado não vai se atualizar sozinho para ela)"
 
       - uses: tauri-apps/tauri-action@v0
         env:
