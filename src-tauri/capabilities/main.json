@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Janela do launcher: biblioteca, perfil, conquistas e abertura dos jogos.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "store:default",
+    "notification:default",
+    "allow-launch-game",
+    "allow-close-game"
+  ]
+}

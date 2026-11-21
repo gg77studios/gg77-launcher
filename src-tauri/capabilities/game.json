@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/remote-schema.json",
+  "identifier": "game-bridge",
+  "description": "Páginas de jogo (sites remotos) só podem liberar conquistas do próprio jogo.",
+  "windows": ["game-*"],
+  "remote": {
+    "urls": ["https://*", "http://localhost:*", "http://127.0.0.1:*"]
+  },
+  "permissions": ["allow-unlock-achievement"]
+}
