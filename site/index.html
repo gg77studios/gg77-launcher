@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GG77 Launcher</title>
+    <meta name="description" content="Baixe o GG77 Launcher: os jogos do grupo instalados no seu PC, conquistas na nuvem e amigos jogando agora." />
+    <meta name="theme-color" content="#0d0f13" />
+    <link rel="icon" type="image/png" href="img/icon.png" />
+    <link rel="preload" href="fonts/unbounded-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
+    <style>
+      @font-face {
+        font-family: "Unbounded";
+        src: url("fonts/unbounded-latin-wght-normal.woff2") format("woff2");
+        font-weight: 200 900;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Figtree";
+        src: url("fonts/figtree-latin-wght-normal.woff2") format("woff2");
+        font-weight: 300 900;
+        font-display: swap;
+      }
+
+      :root {
+        --bg: #0d0f13;
+        --ink: #f2f4f8;
+        --ink-2: #c3c9d4;
+        --ink-3: #8d95a5;
+        --accent: #d4ff3f;
+        --on-accent: #10130a;
+        --glass: rgb(26 29 37 / 0.5);
+        --glass-strong: rgb(24 27 34 / 0.78);
+        --glass-soft: rgb(255 255 255 / 0.06);
+        --rim: rgb(255 255 255 / 0.14);
+        --hi: rgb(255 255 255 / 0.28);
+        --line: rgb(255 255 255 / 0.09);
+        --display: "Unbounded", system-ui, sans-serif;
+        --body: "Figtree", system-ui, sans-serif;
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--body);
+        font-size: 17px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+
+      /* papel de parede: a arte do jogo apagada, como no launcher */
+      .wall {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background:
+          linear-gradient(180deg, rgb(13 15 19 / 0.55) 0%, rgb(13 15 19 / 0.82) 45%, var(--bg) 85%),
+          radial-gradient(60% 50% at 85% 10%, rgb(212 255 63 / 0.1), transparent 70%),
+          url("img/idle-banner.jpg") center top / cover no-repeat;
+        filter: saturate(0.8);
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .wrap {
+        width: min(1200px, 100%);
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      .glass {
+        background: radial-gradient(130% 90% at 8% 0%, rgb(255 255 255 / 0.08), transparent 46%), var(--glass);
+        border: 1px solid var(--rim);
+        box-shadow: inset 0 1px 0 var(--hi), 0 28px 60px -28px rgb(0 0 0 / 0.7);
+        backdrop-filter: blur(24px) saturate(160%);
+        -webkit-backdrop-filter: blur(24px) saturate(160%);
+      }
+
+      @media (prefers-reduced-transparency: reduce) {
+        .glass {
+          background: var(--glass-strong);
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+      }
+
+      /* ---------- topo ---------- */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 22px 0;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+      }
+
+      .brand img {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+      }
+
+      .brand span {
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+        color: var(--accent);
+      }
+
+      .top-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 16px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        color: var(--ink-2);
+      }
+
+      .top-link:hover {
+        color: var(--ink);
+      }
+
+      /* ---------- hero ---------- */
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        align-items: center;
+        gap: 56px;
+        min-height: calc(100dvh - 90px);
+        padding: 24px 0 72px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 22px;
+        padding: 6px 12px 6px 8px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-2);
+      }
+
+      .eyebrow i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 12px var(--accent);
+      }
+
+      h1 {
+        margin: 0 0 20px;
+        font-family: var(--display);
+        font-size: clamp(38px, 5vw, 64px);
+        font-weight: 800;
+        line-height: 1.04;
+        letter-spacing: -0.035em;
+      }
+
+      h1 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+
+      .lead {
+        max-width: 46ch;
+        margin: 0 0 34px;
+        font-size: 19px;
+        color: var(--ink-2);
+      }
+
+      .download {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 26px 16px 20px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--on-accent);
+        text-decoration: none;
+        font-weight: 800;
+        box-shadow: 0 18px 40px -16px rgb(212 255 63 / 0.55), inset 0 1px 0 rgb(255 255 255 / 0.5);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .download:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 48px -16px rgb(212 255 63 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.5);
+      }
+
+      .download:active {
+        transform: translateY(1px);
+      }
+
+      .download i {
+        font-size: 26px;
+      }
+
+      .download span {
+        display: grid;
+        line-height: 1.2;
+      }
+
+      .download strong {
+        font-family: var(--display);
+        font-size: 17px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .download small {
+        font-size: 13px;
+        font-weight: 600;
+        opacity: 0.72;
+      }
+
+      .others {
+        margin: 18px 0 0;
+        font-size: 14px;
+        color: var(--ink-3);
+      }
+
+      .others a {
+        color: var(--ink-2);
+        font-weight: 600;
+        text-underline-offset: 3px;
+      }
+
+      .others a:hover {
+        color: var(--accent);
+      }
+
+      .shot {
+        position: relative;
+        margin: 0;
+        padding: 10px;
+        border-radius: 26px;
+        transform: perspective(1600px) rotateY(-9deg) rotateX(3deg);
+        transform-origin: left center;
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 18px;
+      }
+
+      .shot::after {
+        content: "";
+        position: absolute;
+        inset: auto 10% -40px 10%;
+        height: 60px;
+        z-index: -1;
+        background: radial-gradient(50% 50% at 50% 50%, rgb(212 255 63 / 0.25), transparent);
+        filter: blur(20px);
+      }
+
+      /* ---------- seções ---------- */
+      section.block {
+        padding: 72px 0;
+      }
+
+      h2 {
+        margin: 0 0 12px;
+        font-family: var(--display);
+        font-size: clamp(26px, 3vw, 38px);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.12;
+      }
+
+      .block > .wrap > p {
+        max-width: 60ch;
+        margin: 0 0 36px;
+        color: var(--ink-2);
+      }
+
+      .perks {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        grid-template-rows: auto auto;
+        gap: 16px;
+      }
+
+      .perk {
+        padding: 26px;
+        border-radius: 24px;
+      }
+
+      .perk--main {
+        grid-row: span 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 24px;
+      }
+
+      .perk i {
+        display: inline-grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        margin-bottom: 14px;
+        border-radius: 14px;
+        background: rgb(212 255 63 / 0.12);
+        color: var(--accent);
+        font-size: 24px;
+      }
+
+      .perk h3 {
+        margin: 0 0 6px;
+        font-family: var(--display);
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .perk p {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 15px;
+      }
+
+      .numbers {
+        display: flex;
+        gap: 28px;
+      }
+
+      .numbers div {
+        display: grid;
+      }
+
+      .numbers strong {
+        font-family: var(--display);
+        font-size: 30px;
+        font-weight: 800;
+        color: var(--accent);
+        letter-spacing: -0.03em;
+      }
+
+      .numbers span {
+        font-size: 13px;
+        color: var(--ink-3);
+      }
+
+      .perk-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      /* jogos */
+      .game {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 28px;
+        align-items: center;
+        padding: 16px;
+        border-radius: 26px;
+      }
+
+      .game img {
+        width: 100%;
+        aspect-ratio: 2 / 3;
+        object-fit: cover;
+        border-radius: 18px;
+      }
+
+      .game h3 {
+        margin: 0 0 8px;
+        font-family: var(--display);
+        font-size: 28px;
+        letter-spacing: -0.03em;
+      }
+
+      .game p {
+        margin: 0 0 16px;
+        max-width: 52ch;
+        color: var(--ink-2);
+      }
+
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .tags li {
+        padding: 5px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--glass-soft);
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+
+      .soon {
+        margin-top: 16px;
+        padding: 20px 24px;
+        border-radius: 20px;
+        border: 1px dashed var(--rim);
+        color: var(--ink-3);
+        font-size: 15px;
+      }
+
+      /* instalar */
+      .steps {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .step {
+        padding: 26px;
+        border-radius: 24px;
+      }
+
+      .step h3 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 14px;
+        font-family: var(--display);
+        font-size: 18px;
+      }
+
+      .step h3 i {
+        color: var(--accent);
+        font-size: 24px;
+      }
+
+      .step ol {
+        margin: 0;
+        padding-left: 20px;
+        color: var(--ink-2);
+        font-size: 15px;
+      }
+
+      .step li + li {
+        margin-top: 8px;
+      }
+
+      .step b {
+        color: var(--ink);
+      }
+
+      code {
+        padding: 2px 7px;
+        border-radius: 7px;
+        background: rgb(255 255 255 / 0.08);
+        font-size: 13.5px;
+        color: var(--ink);
+      }
+
+      footer {
+        padding: 48px 0 56px;
+        border-top: 1px solid var(--line);
+        color: var(--ink-3);
+        font-size: 14px;
+      }
+
+      footer .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+
+      /* ---------- celular ---------- */
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+          min-height: 0;
+          gap: 40px;
+          padding-top: 8px;
+        }
+        .shot {
+          transform: none;
+        }
+        .perks,
+        .steps,
+        .perk-row {
+          grid-template-columns: 1fr;
+        }
+        .perk--main {
+          grid-row: auto;
+        }
+        .game {
+          grid-template-columns: 1fr;
+        }
+        .game img {
+          aspect-ratio: 16 / 9;
+          object-position: center 30%;
+        }
+      }
+
+      @media (max-width: 520px) {
+        body {
+          font-size: 16px;
+        }
+        .wrap {
+          padding: 0 16px;
+        }
+        .top-link span {
+          display: none;
+        }
+        .download {
+          width: 100%;
+          justify-content: center;
+        }
+        .numbers {
+          flex-wrap: wrap;
+          gap: 18px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        .download {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wall" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <header>
+        <a class="brand" href="./" aria-label="GG77 Launcher">
+          <img src="img/icon.png" alt="" width="34" height="34" />
+          <span>GG77</span>
+        </a>
+        <a class="top-link glass" href="https://github.com/gg77studios/gg77-launcher/releases" rel="noopener" aria-label="Todas as versões do launcher">
+          <i class="ph ph-github-logo" aria-hidden="true"></i><span>Todas as versões</span>
+        </a>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <p class="eyebrow glass"><i aria-hidden="true"></i><span id="version">GG77 Launcher</span></p>
+            <h1 id="hero-title">Os jogos da galera, <em>instalados</em> no seu PC.</h1>
+            <p class="lead">
+              Um launcher só para o nosso grupo: baixa os jogos uma vez, atualiza em segundos, guarda suas conquistas na nuvem e
+              mostra quem dos amigos está jogando agora.
+            </p>
+            <a id="download" class="download" href="https://github.com/gg77studios/gg77-launcher/releases/latest" rel="noopener">
+              <i class="ph-fill ph-download-simple" aria-hidden="true"></i>
+              <span><strong id="dl-label">Baixar o launcher</strong><small id="dl-meta">Windows e Linux</small></span>
+            </a>
+            <p class="others" id="others">Windows 10/11 e Linux, 64 bits.</p>
+          </div>
+          <figure class="shot glass">
+            <img src="img/biblioteca.jpg" width="1440" height="900" alt="Biblioteca do GG77 Launcher com o Idle Legends, tempo de jogo, sessões e conquistas" />
+          </figure>
+        </section>
+      </main>
+    </div>
+
+    <section class="block" aria-labelledby="perks-title">
+      <div class="wrap">
+        <h2 id="perks-title">O que vem junto</h2>
+        <p>Nada de abrir aba no navegador: cada jogo roda na janela dele, e o launcher cuida do resto.</p>
+        <div class="perks">
+          <article class="perk perk--main glass">
+            <div>
+              <i class="ph ph-lightning" aria-hidden="true"></i>
+              <h3>Instala uma vez, atualiza em segundos</h3>
+              <p>
+                Os arquivos vêm da CDN do GitHub. Quando sai versão nova, o launcher baixa só o que mudou, e cada arquivo é conferido
+                antes de abrir.
+              </p>
+            </div>
+            <div class="numbers">
+              <div><strong>~3 s</strong><span>para instalar o Idle, em conexão rápida</span></div>
+              <div><strong>263 KB</strong><span>na última atualização</span></div>
+            </div>
+          </article>
+          <article class="perk glass">
+            <i class="ph ph-cloud-check" aria-hidden="true"></i>
+            <h3>Conta GG77 na nuvem</h3>
+            <p>Conquistas, tempo de jogo e perfil iguais em qualquer PC. O que já está no seu sobe junto no primeiro login.</p>
+          </article>
+          <div class="perk-row">
+            <article class="perk glass">
+              <i class="ph ph-users-three" aria-hidden="true"></i>
+              <h3>Amigos jogando agora</h3>
+              <p>Veja quem está online e em qual jogo.</p>
+            </article>
+            <article class="perk glass">
+              <i class="ph ph-key" aria-hidden="true"></i>
+              <h3>Sem outro login</h3>
+              <p>Logado no launcher, você entra direto nos jogos.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="games-title">
+      <div class="wrap">
+        <h2 id="games-title">Jogos</h2>
+        <p>Feitos pela GG77 para jogar com os amigos.</p>
+        <article class="game glass">
+          <img src="img/idle-cover.jpg" width="600" height="900" alt="Capa do Idle Legends" loading="lazy" />
+          <div>
+            <h3>Idle Legends</h3>
+            <p>
+              RPG idle com salas entre amigos, arena por temporada, prestígio, eventos e hall da fama. O herói luta sozinho, e você
+              cuida do equipamento e das estratégias.
+            </p>
+            <ul class="tags">
+              <li>RPG idle</li>
+              <li>Arena</li>
+              <li>Conquistas no launcher</li>
+              <li>Login pelo launcher</li>
+            </ul>
+          </div>
+        </article>
+        <p class="soon">Próximos jogos aparecem na sua biblioteca sozinhos, sem baixar o launcher de novo.</p>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="install-title">
+      <div class="wrap">
+        <h2 id="install-title">Como instalar</h2>
+        <p>Leva um minuto. O launcher não tem assinatura de loja, então o sistema pode pedir uma confirmação na primeira vez.</p>
+        <div class="steps">
+          <article class="step glass">
+            <h3><i class="ph ph-windows-logo" aria-hidden="true"></i> Windows</h3>
+            <ol>
+              <li>Baixe o arquivo que termina em <code>-setup.exe</code>.</li>
+              <li>Se aparecer "O Windows protegeu o computador", clique em <b>Mais informações</b> e depois em <b>Executar assim mesmo</b>.</li>
+              <li>Abra o GG77 Launcher, crie sua conta e instale o Idle Legends na biblioteca.</li>
+            </ol>
+          </article>
+          <article class="step glass">
+            <h3><i class="ph ph-linux-logo" aria-hidden="true"></i> Linux</h3>
+            <ol>
+              <li>Baixe o <code>.AppImage</code> (roda direto e se atualiza sozinho).</li>
+              <li>Dê permissão de execução: <code>chmod +x GG77.Launcher_*.AppImage</code>, ou nas propriedades do arquivo.</li>
+              <li>Prefere pacote? Tem <code>.deb</code> e <code>.rpm</code> em <a href="https://github.com/gg77studios/gg77-launcher/releases/latest" rel="noopener">todas as versões</a>.</li>
+            </ol>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <span>GG77 Studios</span>
+        <a href="https://github.com/gg77studios/gg77-launcher" rel="noopener">Código do launcher no GitHub</a>
+      </div>
+    </footer>
+
+    <script>
+      // Botão certo para o sistema de quem visita, com versão e tamanho da última release.
+      (function () {
+        var RELEASES = "https://github.com/gg77studios/gg77-launcher/releases/latest";
+        var ua = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || "";
+        var mobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        var os = mobile ? "mobile" : /Win/i.test(ua) ? "windows" : /Linux|X11/i.test(ua) ? "linux" : /Mac/i.test(ua) ? "mac" : "other";
+        var mb = function (bytes) {
+          return (bytes / 1048576).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " MB";
+        };
+        var el = function (id) {
+          return document.getElementById(id);
+        };
+
+        if (os === "mobile") el("others").textContent = "O launcher é para computador (Windows ou Linux). Abra esta página no PC para baixar.";
+        if (os === "mac") el("others").textContent = "Ainda não tem versão para macOS. Por enquanto: Windows 10/11 e Linux.";
+
+        fetch("https://api.github.com/repos/gg77studios/gg77-launcher/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+          .then(function (r) {
+            return r.ok ? r.json() : Promise.reject(r.status);
+          })
+          .then(function (rel) {
+            var find = function (re) {
+              return (rel.assets || []).find(function (a) {
+                return re.test(a.name);
+              });
+            };
+            var a = {
+              exe: find(/-setup\.exe$/),
+              msi: find(/\.msi$/),
+              appimage: find(/\.AppImage$/),
+              deb: find(/\.deb$/),
+              rpm: find(/\.rpm$/),
+            };
+            var version = (rel.tag_name || "").replace(/^v/, "");
+            el("version").textContent = "GG77 Launcher " + version;
+
+            var main = os === "linux" ? a.appimage : os === "windows" ? a.exe : null;
+            var link = function (asset, label) {
+              return asset ? '<a href="' + asset.browser_download_url + '">' + label + "</a>" : null;
+            };
+            if (main) {
+              el("download").href = main.browser_download_url;
+              el("dl-label").textContent = os === "linux" ? "Baixar para Linux" : "Baixar para Windows";
+              el("dl-meta").textContent = (os === "linux" ? ".AppImage" : "Instalador") + " · " + mb(main.size) + " · v" + version;
+            } else {
+              el("dl-label").textContent = "Escolha a versão";
+              el("dl-meta").textContent = "Windows e Linux · v" + version;
+            }
+            if (os !== "mobile" && os !== "mac") {
+              var others = [
+                os !== "windows" && link(a.exe, "Windows (.exe)"),
+                link(a.msi, "Windows (.msi)"),
+                os !== "linux" && link(a.appimage, "Linux (.AppImage)"),
+                link(a.deb, ".deb"),
+                link(a.rpm, ".rpm"),
+              ].filter(Boolean);
+              if (others.length) el("others").innerHTML = "Outras opções: " + others.join(" · ");
+            }
+          })
+          .catch(function () {
+            el("download").href = RELEASES;
+          });
+      })();
+    </script>
+  </body>
+</html>
