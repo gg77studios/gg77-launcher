@@ -77,7 +77,7 @@ pelo launcher (pacote assinado); página da web aberta como jogo não recebe tok
 1. **Cliente:** ao abrir sem sessão salva, chama `window.GG77.getSession()`. Recebe `{ token, nickname }`
    (token de 5 min). Falhou (launcher sem conta, launcher antigo)? Mostra o login normal.
 2. **Servidor do jogo:** `POST /api/auth/launcher { hubToken }` confere o token com a chave pública do hub
-   (`https://gg77.forjahub.online/.well-known/gg77-hub.pem`, guardada no env `HUB_PUBLIC_KEY`):
+   (`https://arena.forjahub.online/hub/.well-known/gg77-hub.pem`, guardada no env `HUB_PUBLIC_KEY`):
    algoritmo `EdDSA`, `iss = gg77-hub`, `aud = <id do jogo>`, validade. `sub` = id da conta GG77.
    - Conta do jogo já ligada (`users.hub_user_id = sub`): devolve a sessão normal do jogo.
    - Não ligada: responde `{ needsLink: true }` e o jogo mostra "Já jogo" (apelido e senha do jogo uma

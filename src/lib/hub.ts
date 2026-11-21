@@ -5,7 +5,7 @@
 import { isTauri, loadKey, saveKey } from "./platform";
 import type { Profile, Unlock } from "./types";
 
-export const HUB_URL = (import.meta.env.VITE_HUB_URL as string | undefined) ?? "https://gg77.forjahub.online";
+export const HUB_URL = (import.meta.env.VITE_HUB_URL as string | undefined) ?? "https://arena.forjahub.online/hub";
 
 export type HubUser = { id: string; nickname: string; profile: Partial<Profile> };
 export type Presence = { status: "online" | "playing" | "offline"; gameId: string | null; lastSeen: number | null };
