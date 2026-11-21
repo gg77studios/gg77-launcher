@@ -32,8 +32,8 @@ export function Toasts() {
             onClick={() => dismissToast(t.key)}
             title="Fechar"
           >
-            <span className="toast-medal" aria-hidden>
-              <Trophy size={22} weight="fill" />
+            <span className="toast-medal" data-art={t.icon ? true : undefined} data-pixel={t.pixel || undefined} aria-hidden>
+              {t.icon ? <img src={t.icon} alt="" /> : <Trophy size={22} weight="fill" />}
             </span>
             <span className="toast-text">
               <small>Conquista desbloqueada</small>

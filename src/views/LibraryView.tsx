@@ -15,7 +15,7 @@ window.GG77?.unlock("primeira-vitoria", {
 });`;
 
 export function LibraryView() {
-  const { state, games, running, dispatch, play, defsFor, banners } = useStore();
+  const { state, games, running, dispatch, play, defsFor, banners, describe } = useStore();
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<{ mode: "add" } | { mode: "edit"; game: Game } | null>(null);
   const [error, setError] = useState("");
@@ -160,10 +160,10 @@ export function LibraryView() {
           {total ? (
             <div className="ach-list">
               {extra.map((u) => (
-                <AchievementCard key={u.id} def={{ id: u.id, title: u.title ?? u.id, description: u.description ?? "", tier: "comum" }} unlock={u} compact />
+                <AchievementCard key={u.id} def={{ id: u.id, ...describe(u) }} unlock={u} pixel={game.pixelArt} compact />
               ))}
               {defs.map((d) => (
-                <AchievementCard key={d.id} def={d} unlock={state.unlocks[unlockKey(game.id, d.id)]} compact />
+                <AchievementCard key={d.id} def={d} unlock={state.unlocks[unlockKey(game.id, d.id)]} pixel={game.pixelArt} compact />
               ))}
             </div>
           ) : (

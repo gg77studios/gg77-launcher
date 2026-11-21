@@ -1,6 +1,6 @@
-import { Camera, Check, ImageSquare, Medal, Plus } from "@phosphor-icons/react";
+import { Camera, Check, ImageSquare, LockSimple, Plus } from "@phosphor-icons/react";
 import { useId, useMemo, useState } from "react";
-import { AchievementCard } from "../components/AchievementCard";
+import { AchievementCard, AchievementIcon } from "../components/AchievementCard";
 import { Avatar } from "../components/Avatar";
 import { BannerPicker } from "../components/BannerPicker";
 import { AVATAR_PRESETS } from "../lib/catalog";
@@ -11,7 +11,7 @@ import { useStore } from "../lib/state";
 const MAX_SHOWCASE = 3;
 
 export function ProfileView() {
-  const { state, dispatch, games, describe, gameTitle, level, xp, banners } = useStore();
+  const { state, dispatch, games, describe, gameTitle, level, xp, banners, titleText } = useStore();
   const { profile } = state;
   const avatarInput = useId();
   const [picking, setPicking] = useState(false);
@@ -68,6 +68,7 @@ export function ProfileView() {
             Apelido
           </label>
           <input id="nick" className="nick-input" value={profile.nickname} maxLength={24} onChange={(e) => setPatch({ nickname: e.target.value })} />
+          {titleText && <div className="profile-title">{titleText}</div>}
           <div className="profile-level">
             <span className="level-badge level-badge--sm">{level}</span>
             Nível {level}, {xp} XP
@@ -142,7 +143,7 @@ export function ProfileView() {
               const d = describe(u);
               return (
                 <div key={key} className="showcase-item" data-tier={d.tier}>
-                  <Medal size={34} weight="fill" aria-hidden />
+                  <AchievementIcon def={{ id: u.id, ...d }} unlocked pixel={d.pixel} size={64} />
                   <strong>{d.title}</strong>
                   <span>{gameTitle(u.gameId)}</span>
                 </div>
@@ -157,7 +158,7 @@ export function ProfileView() {
                   const on = profile.showcase.includes(key);
                   return (
                     <button key={key} type="button" className="pick" aria-pressed={on} onClick={() => toggleShowcase(key)}>
-                      <AchievementCard def={{ id: u.id, title: d.title, description: d.description, tier: d.tier }} unlock={u} compact />
+                      <AchievementCard def={{ id: u.id, ...d }} unlock={u} pixel={d.pixel} compact />
                       {on && <Check size={16} weight="bold" aria-hidden />}
                     </button>
                   );
@@ -169,6 +170,80 @@ export function ProfileView() {
           )}
         </section>
       </div>
+
+      <Appearance />
     </div>
+  );
+}
+
+/** Peças para montar o perfil: moldura do avatar e título sob o apelido. */
+function Appearance() {
+  const { state, dispatch, frames, describe, gameTitle } = useStore();
+  const { profile } = state;
+  const unlocked = Object.entries(state.unlocks).sort((a, b) => b[1].at - a[1].at);
+  const setPatch = (patch: Partial<typeof profile>) => dispatch({ type: "profile", patch });
+
+  return (
+    <section className="panel glass appearance" aria-labelledby="app-title">
+      <h2 id="app-title">Aparência do perfil</h2>
+      <div className="appearance-grid">
+        <div>
+          <h3>Moldura do avatar</h3>
+          <div className="frames" role="radiogroup" aria-label="Moldura do avatar">
+            <button type="button" role="radio" className="frame-tile" aria-checked={!profile.frame} onClick={() => setPatch({ frame: undefined })}>
+              <Avatar profile={profile} size={56} frame={null} />
+              <strong>Sem moldura</strong>
+            </button>
+            {frames.map(({ def, unlocked: free, requirement }) => (
+              <button
+                key={def.id}
+                type="button"
+                role="radio"
+                className="frame-tile"
+                aria-checked={profile.frame === def.id}
+                disabled={!free}
+                onClick={() => setPatch({ frame: def.id })}
+                title={free ? def.name : `Libere com: ${requirement}`}
+              >
+                <Avatar profile={profile} size={56} frame={def.id} />
+                <strong>{def.name}</strong>
+                {!free && (
+                  <span>
+                    <LockSimple size={11} weight="bold" aria-hidden /> {requirement}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3>Título</h3>
+          <p className="muted appearance-hint">Qualquer conquista liberada pode virar o título que aparece sob o seu apelido.</p>
+          <div className="titles" role="radiogroup" aria-label="Título">
+            <button type="button" role="radio" className="title-chip" aria-checked={!profile.title} onClick={() => setPatch({ title: undefined })}>
+              Sem título
+            </button>
+            {unlocked.map(([key, u]) => {
+              const d = describe(u);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  className="title-chip"
+                  data-tier={d.tier}
+                  aria-checked={profile.title === key}
+                  onClick={() => setPatch({ title: key })}
+                  title={gameTitle(u.gameId)}
+                >
+                  <AchievementIcon def={{ id: u.id, ...d }} unlocked pixel={d.pixel} size={22} />
+                  {d.title}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

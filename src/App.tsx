@@ -20,7 +20,7 @@ const NAV: Array<{ id: View; label: string; icon: typeof Trophy }> = [
 ];
 
 export function App() {
-  const { state, ready, games, level, levelProgress, xp, bannerImage } = useStore();
+  const { state, ready, games, level, levelProgress, xp, bannerImage, titleText } = useStore();
   const [view, setView] = useState<View>("biblioteca");
   const reduce = useReducedMotion();
   const { settings, profile } = state;
@@ -70,6 +70,7 @@ export function App() {
           <Avatar profile={profile} size={40} />
           <span className="me-text">
             <strong>{profile.nickname || "Jogador"}</strong>
+            {titleText && <span className="me-title">{titleText}</span>}
             <span>
               Nível {level} <em>{xp} XP</em>
             </span>

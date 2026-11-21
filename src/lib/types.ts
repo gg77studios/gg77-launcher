@@ -7,7 +7,17 @@ export type AchievementDef = {
   tier: Tier;
   /** escondida até ser liberada */
   hidden?: boolean;
+  /** ícone quadrado da conquista */
+  icon?: string;
 };
+
+export type FrameUnlock =
+  | { kind: "level"; level: number }
+  | { kind: "achievement"; gameId: string; id: string }
+  | { kind: "tier"; tier: Tier };
+
+/** Moldura do avatar; sem regra de liberação, já vem liberada. */
+export type FrameDef = { id: string; name: string; unlock?: FrameUnlock };
 
 /** Banner de perfil que o jogo oferece; liberado por uma conquista do mesmo jogo. */
 export type BannerDef = {
@@ -31,6 +41,10 @@ export type Game = {
   tint: string;
   tagline?: string;
   achievements: AchievementDef[];
+  /** ícone para conquistas que chegam sem catálogo, pelo prefixo do id (regex) */
+  iconRules?: Array<{ match: string; icon: string }>;
+  /** ícones em pixel art: desenhar sem suavizar */
+  pixelArt?: boolean;
   banners?: BannerDef[];
   /** adicionado pelo usuário (pode ser removido) */
   custom?: boolean;
@@ -71,6 +85,10 @@ export type Profile = {
   banner?: string;
   /** conquistas em destaque no perfil (chave gameId:id) */
   showcase: string[];
+  /** moldura do avatar (id de FRAMES) */
+  frame?: string;
+  /** título exibido sob o apelido: a chave gameId:id de uma conquista liberada */
+  title?: string;
 };
 
 export type ThemeMode = "grafite" | "meia-noite" | "claro";

@@ -1,4 +1,10 @@
-import type { AchievementDef, BannerDef, Game, Persisted, Tier } from "./types";
+import type { AchievementDef, BannerDef, FrameDef, Game, Persisted, Tier } from "./types";
+
+/** Põe o ícone de cada conquista a partir do id (arquivo com o mesmo nome na pasta). */
+const withIcons = (dir: string, ext: string, list: AchievementDef[]): AchievementDef[] =>
+  list.map((a) => ({ ...a, icon: `${dir}${a.id}${ext}` }));
+
+const IDLE_ICONS = "/games/idle-legends/achievements/";
 
 /** Jogos que já vêm no launcher. Para adicionar um novo jogo do grupo, inclua aqui. */
 export const CATALOG: Game[] = [
@@ -15,7 +21,9 @@ export const CATALOG: Game[] = [
     // Os ids feat_* são os feitos do próprio jogo; os outros são momentos que só o launcher premia.
     // Outras conquistas do jogo (bestiário, chefes, pódio de evento, medalhas de ouro) chegam com
     // título próprio e aparecem como extras quando liberadas.
-    achievements: [
+    // ícones: a arte de interface do próprio jogo (pixel art)
+    pixelArt: true,
+    achievements: withIcons(IDLE_ICONS, ".png", [
       { id: "primeira-vitoria", title: "Primeiro sangue", description: "Vença a primeira luta.", tier: "comum" },
       { id: "nivel-10", title: "Aventureiro", description: "Chegue ao nível 10.", tier: "comum" },
       { id: "lendario", title: "Brilho lendário", description: "Tenha um item lendário.", tier: "rara" },
@@ -32,6 +40,17 @@ export const CATALOG: Game[] = [
       { id: "feat_medals_all", title: "Colecionador", description: "Medalha de ouro em todos os inimigos comuns.", tier: "épica" },
       { id: "arena-top3", title: "Pódio da Arena", description: "Termine a temporada entre os 3 primeiros da Arena.", tier: "épica" },
       { id: "hall-da-fama", title: "Lenda da sala", description: "Entre para o hall da fama de uma sala.", tier: "épica", hidden: true },
+    ]),
+    // ícone das conquistas extras que o jogo manda (pelo prefixo do id)
+    iconRules: [
+      { match: "^bestiary_", icon: `${IDLE_ICONS}extra-bestiary.png` },
+      { match: "^boss_slain_", icon: `${IDLE_ICONS}extra-boss.png` },
+      { match: "^event_", icon: `${IDLE_ICONS}extra-event.png` },
+      { match: "^rarity_", icon: `${IDLE_ICONS}extra-rarity.png` },
+      { match: "^run_noheal", icon: `${IDLE_ICONS}extra-noheal.png` },
+      { match: "^run_kills_", icon: `${IDLE_ICONS}extra-ruin.png` },
+      { match: "^enemy_kills_", icon: `${IDLE_ICONS}extra-medal.png` },
+      { match: ".", icon: `${IDLE_ICONS}extra-default.png` },
     ],
     // banners de perfil com a arte do próprio jogo, cada um liberado por uma conquista ligada a ele
     banners: [
@@ -67,7 +86,7 @@ export const bannerRef = (gameId: string, bannerId: string) => `ref:${gameId}:${
 /** Conquistas do próprio launcher: liberadas pelo uso, sem precisar de integração. */
 export const LAUNCHER_ID = "launcher";
 
-export const LAUNCHER_ACHIEVEMENTS: AchievementDef[] = [
+export const LAUNCHER_ACHIEVEMENTS: AchievementDef[] = withIcons("/games/launcher/achievements/", ".jpg", [
   { id: "bem-vindo", title: "Bem-vindo à guilda", description: "Abra o launcher pela primeira vez.", tier: "comum" },
   { id: "primeira-partida", title: "Apertou o play", description: "Abra um jogo pelo launcher.", tier: "comum" },
   { id: "estilo-proprio", title: "Estilo próprio", description: "Troque o avatar, o banner ou a cor do launcher.", tier: "comum" },
@@ -76,6 +95,17 @@ export const LAUNCHER_ACHIEVEMENTS: AchievementDef[] = [
   { id: "maratona", title: "Maratona", description: "Fique 2 horas seguidas num jogo.", tier: "rara" },
   { id: "veterano", title: "Dez horas de estrada", description: "Some 10 horas de jogo.", tier: "épica" },
   { id: "cacador", title: "Caçador de troféus", description: "Libere 10 conquistas.", tier: "épica" },
+]);
+
+/** Molduras do avatar. Cada uma é liberada por nível, por uma conquista ou por ter uma conquista épica. */
+export const FRAMES: FrameDef[] = [
+  { id: "vidro", name: "Vidro" },
+  { id: "neon", name: "Neon", unlock: { kind: "level", level: 3 } },
+  { id: "pixel", name: "Pixel", unlock: { kind: "achievement", gameId: "idle-legends", id: "primeira-vitoria" } },
+  { id: "chamas", name: "Chamas", unlock: { kind: "achievement", gameId: "idle-legends", id: "feat_ruin_1" } },
+  { id: "ouro", name: "Ouro", unlock: { kind: "tier", tier: "épica" } },
+  { id: "gladiador", name: "Gladiador", unlock: { kind: "achievement", gameId: "idle-legends", id: "arena-top3" } },
+  { id: "holografica", name: "Holográfica", unlock: { kind: "level", level: 10 } },
 ];
 
 export const TIER_XP: Record<Tier, number> = { comum: 10, rara: 25, épica: 50 };

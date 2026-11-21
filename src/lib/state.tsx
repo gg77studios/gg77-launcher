@@ -3,6 +3,7 @@ import {
   bannerRef,
   CATALOG,
   DEFAULT_STATE,
+  FRAMES,
   LAUNCHER_ACHIEVEMENTS,
   LAUNCHER_BANNERS,
   LAUNCHER_ID,
@@ -12,7 +13,7 @@ import {
 } from "./catalog";
 import { launchGame, listenGameEvents, loadKey, notify, saveKey } from "./platform";
 import { chime } from "./sound";
-import type { AchievementDef, BannerDef, Game, GameStats, Persisted, Profile, Settings, Tier, Unlock } from "./types";
+import type { AchievementDef, BannerDef, FrameDef, Game, GameStats, Persisted, Profile, Settings, Tier, Unlock } from "./types";
 
 type Action =
   | { type: "hydrate"; state: Persisted }
@@ -88,7 +89,21 @@ function reducer(s: Persisted, a: Action): Persisted {
   }
 }
 
-export type Toast = { key: string; title: string; description: string; game: string; xp: number; tier: Tier; reward?: string };
+export type Toast = {
+  key: string;
+  title: string;
+  description: string;
+  game: string;
+  xp: number;
+  tier: Tier;
+  reward?: string;
+  icon?: string;
+  pixel?: boolean;
+};
+
+export type FrameOption = { def: FrameDef; unlocked: boolean; requirement?: string };
+
+export type Described = { title: string; description: string; tier: Tier; hidden?: boolean; icon?: string; pixel?: boolean };
 
 export type BannerOption = {
   ref: string;
@@ -110,7 +125,10 @@ type Ctx = {
   dispatch: React.Dispatch<Action>;
   play: (game: Game) => Promise<void>;
   defsFor: (gameId: string) => AchievementDef[];
-  describe: (u: Unlock) => { title: string; description: string; tier: Tier; hidden?: boolean };
+  describe: (u: Unlock) => Described;
+  frames: FrameOption[];
+  /** texto do título escolhido no perfil */
+  titleText?: string;
   xp: number;
   level: number;
   levelProgress: number;
@@ -175,16 +193,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const describe = useCallback(
-    (u: Unlock) => {
+    (u: Unlock): Described => {
       const def = defsFor(u.gameId).find((d) => d.id === u.id);
+      const game = games.find((g) => g.id === u.gameId);
+      const rule = def?.icon || u.icon ? undefined : game?.iconRules?.find((r) => new RegExp(r.match).test(u.id));
       return {
         title: def?.title ?? u.title ?? u.id,
         description: def?.description ?? u.description ?? "",
         tier: def?.tier ?? ("comum" as Tier),
         hidden: def?.hidden,
+        icon: def?.icon ?? u.icon ?? rule?.icon,
+        pixel: !!game?.pixelArt,
       };
     },
-    [defsFor],
+    [defsFor, games],
   );
 
   // chaves já liberadas nesta sessão: protege contra eventos repetidos antes do estado atualizar
@@ -208,6 +230,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         xp: TIER_XP[d.tier],
         tier: d.tier,
         reward: prize ? `Banner liberado: ${prize.title}` : undefined,
+        icon: d.icon,
+        pixel: d.pixel,
       };
       setToasts((ts) => (ts.some((t) => t.key === key) ? ts : [...ts, toast]));
       const { sound, notifications } = stateRef.current.settings;
@@ -318,6 +342,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const bannerImage = current?.startsWith("ref:") ? banners.find((b) => b.ref === current)?.def.image : current;
 
   const level = Math.floor(xp / XP_PER_LEVEL) + 1;
+
+  const frames = useMemo<FrameOption[]>(
+    () =>
+      FRAMES.map((def) => {
+        const rule = def.unlock;
+        let unlocked = true;
+        let requirement: string | undefined;
+        if (rule?.kind === "level") {
+          unlocked = level >= rule.level;
+          requirement = `Nível ${rule.level}`;
+        } else if (rule?.kind === "achievement") {
+          unlocked = !!state.unlocks[unlockKey(rule.gameId, rule.id)];
+          const d = defsFor(rule.gameId).find((x) => x.id === rule.id);
+          requirement = d?.hidden ? "uma conquista secreta" : (d?.title ?? rule.id);
+        } else if (rule?.kind === "tier") {
+          unlocked = Object.values(state.unlocks).some((u) => describe(u).tier === rule.tier);
+          requirement = `uma conquista ${rule.tier}`;
+        }
+        return { def, unlocked, requirement: unlocked ? undefined : requirement };
+      }),
+    [level, state.unlocks, defsFor, describe],
+  );
+
+  const titleUnlock = state.profile.title ? state.unlocks[state.profile.title] : undefined;
+  const titleText = titleUnlock ? describe(titleUnlock).title : undefined;
   const levelProgress = (xp % XP_PER_LEVEL) / XP_PER_LEVEL;
 
   const value: Ctx = {
@@ -337,6 +386,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     gameTitle,
     banners,
     bannerImage,
+    frames,
+    titleText,
   };
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

@@ -7,7 +7,7 @@ import type { AchievementDef, Unlock } from "../lib/types";
 type Row = { gameId: string; def: AchievementDef; unlock?: Unlock };
 
 export function AchievementsView() {
-  const { state, games, defsFor, gameTitle, xp, level, levelProgress } = useStore();
+  const { state, games, defsFor, gameTitle, xp, level, levelProgress, describe } = useStore();
   const [filter, setFilter] = useState<string>("todas");
   const [onlyUnlocked, setOnlyUnlocked] = useState(false);
 
@@ -21,13 +21,13 @@ export function AchievementsView() {
       // conquistas enviadas por jogos sem catálogo
       for (const u of Object.values(state.unlocks)) {
         if (u.gameId === gid && !defs.some((d) => d.id === u.id)) {
-          out.push({ gameId: gid, def: { id: u.id, title: u.title ?? u.id, description: u.description ?? "", tier: "comum" }, unlock: u });
+          out.push({ gameId: gid, def: { id: u.id, ...describe(u) }, unlock: u });
         }
       }
     }
     // liberadas primeiro (mais recentes no topo), depois bloqueadas
     return out.sort((a, b) => (b.unlock?.at ?? 0) - (a.unlock?.at ?? 0));
-  }, [sources, defsFor, state.unlocks]);
+  }, [sources, defsFor, state.unlocks, describe]);
 
   const visible = rows.filter((r) => (filter === "todas" || r.gameId === filter) && (!onlyUnlocked || r.unlock));
   const unlocked = rows.filter((r) => r.unlock).length;
@@ -69,7 +69,13 @@ export function AchievementsView() {
 
       <div className="ach-grid glass">
         {visible.map((r) => (
-          <AchievementCard key={`${r.gameId}:${r.def.id}`} def={r.def} unlock={r.unlock} game={gameTitle(r.gameId)} />
+          <AchievementCard
+            key={`${r.gameId}:${r.def.id}`}
+            def={r.def}
+            unlock={r.unlock}
+            game={gameTitle(r.gameId)}
+            pixel={games.find((g) => g.id === r.gameId)?.pixelArt}
+          />
         ))}
         {!visible.length && <p className="muted">Nada por aqui ainda.</p>}
       </div>
