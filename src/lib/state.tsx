@@ -164,14 +164,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [defsFor],
   );
 
+  // chaves já liberadas nesta sessão: protege contra eventos repetidos antes do estado atualizar
+  const seenRef = useRef(new Set<string>());
+
   const unlock = useCallback(
     (u: Unlock) => {
       const key = unlockKey(u.gameId, u.id);
-      if (stateRef.current.unlocks[key]) return;
+      if (stateRef.current.unlocks[key] || seenRef.current.has(key)) return;
+      seenRef.current.add(key);
       dispatch({ type: "unlock", unlock: u });
       const d = describe(u);
       const toast: Toast = { key, title: d.title, description: d.description, game: gameTitle(u.gameId), xp: TIER_XP[d.tier], tier: d.tier };
-      setToasts((ts) => [...ts, toast]);
+      setToasts((ts) => (ts.some((t) => t.key === key) ? ts : [...ts, toast]));
       const { sound, notifications } = stateRef.current.settings;
       if (sound) chime(d.tier);
       if (notifications && !document.hasFocus()) void notify(`Conquista: ${d.title}`, `${toast.game}, +${toast.xp} XP`);
@@ -181,8 +185,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const dismissToast = useCallback((key: string) => setToasts((ts) => ts.filter((t) => t.key !== key)), []);
 
-  // eventos vindos do Rust (sessões e conquistas liberadas pelos jogos)
+  // eventos vindos do Rust (sessões e conquistas liberadas pelos jogos).
+  // O registro é assíncrono: se o efeito for desfeito antes de terminar, desfaz assim que resolver,
+  // senão ficam dois ouvintes e cada evento conta em dobro.
+  const unlockRef = useRef(unlock);
+  unlockRef.current = unlock;
   useEffect(() => {
+    let cancelled = false;
     let off = () => {};
     listenGameEvents({
       started: (gameId) => {
@@ -198,10 +207,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: "session", gameId, seconds });
       },
       unlocked: (p) =>
-        unlock({ gameId: p.gameId, id: p.id, at: Date.now(), title: p.title ?? undefined, description: p.description ?? undefined, icon: p.icon ?? undefined }),
-    }).then((fn) => (off = fn));
-    return () => off();
-  }, [unlock]);
+        unlockRef.current({
+          gameId: p.gameId,
+          id: p.id,
+          at: Date.now(),
+          title: p.title ?? undefined,
+          description: p.description ?? undefined,
+          icon: p.icon ?? undefined,
+        }),
+    }).then((fn) => {
+      if (cancelled) fn();
+      else off = fn;
+    });
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, []);
 
   const play = useCallback(async (game: Game) => {
     await launchGame(game.id, game.url, game.title);

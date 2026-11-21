@@ -67,6 +67,8 @@ fn launch_game(app: AppHandle, game_id: String, url: String, title: String) -> R
     let gid = id.clone();
     window.on_window_event(move |event| {
         if let WindowEvent::Destroyed = event {
+            #[cfg(debug_assertions)]
+            eprintln!("[gg77] sessão encerrada: {gid} ({} s)", started.elapsed().as_secs());
             let _ = handle.emit_to(
                 "main",
                 "game-closed",
@@ -105,6 +107,8 @@ fn unlock_achievement(
     if id.is_empty() {
         return Err("id de conquista inválido".into());
     }
+    #[cfg(debug_assertions)]
+    eprintln!("[gg77] conquista recebida: {game_id}/{id}");
     window
         .app_handle()
         .emit_to(
@@ -127,6 +131,23 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![launch_game, close_game, unlock_achievement])
+        .setup(|_app| {
+            // Autoteste (só em desenvolvimento): GG77_AUTOTEST_URL=<página> npm run app:dev
+            // abre a página como jogo, espera ela liberar conquistas pelo SDK e fecha a janela.
+            #[cfg(debug_assertions)]
+            if let Ok(url) = std::env::var("GG77_AUTOTEST_URL") {
+                let app = _app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    std::thread::sleep(std::time::Duration::from_secs(4));
+                    let r = launch_game(app.clone(), "autoteste".into(), url, "Autoteste".into());
+                    eprintln!("[gg77] autoteste: janela aberta {r:?}");
+                    std::thread::sleep(std::time::Duration::from_secs(8));
+                    close_game(app, "autoteste".into());
+                    eprintln!("[gg77] autoteste: janela fechada");
+                });
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("erro ao iniciar o launcher");
 }
