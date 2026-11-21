@@ -2,6 +2,7 @@ import { Camera, Check, ImageSquare, Medal, Plus } from "@phosphor-icons/react";
 import { useId, useMemo, useState } from "react";
 import { AchievementCard } from "../components/AchievementCard";
 import { Avatar } from "../components/Avatar";
+import { BannerPicker } from "../components/BannerPicker";
 import { AVATAR_PRESETS } from "../lib/catalog";
 import { fmtHours } from "../lib/format";
 import { imageToDataUrl } from "../lib/platform";
@@ -10,11 +11,11 @@ import { useStore } from "../lib/state";
 const MAX_SHOWCASE = 3;
 
 export function ProfileView() {
-  const { state, dispatch, games, describe, gameTitle, level, xp } = useStore();
+  const { state, dispatch, games, describe, gameTitle, level, xp, banners, bannerImage } = useStore();
   const { profile } = state;
   const avatarInput = useId();
-  const bannerInput = useId();
   const [picking, setPicking] = useState(false);
+  const [choosingBanner, setChoosingBanner] = useState(false);
 
   const totalSeconds = Object.values(state.stats).reduce((a, s) => a + s.seconds, 0);
   const favorite = useMemo(() => {
@@ -33,27 +34,15 @@ export function ProfileView() {
 
   return (
     <div className="profile">
-      <div className="profile-banner" style={{ backgroundImage: profile.banner ? `url(${profile.banner})` : undefined }}>
-        <label className="btn btn--glass profile-banner-btn" htmlFor={bannerInput}>
+      <div className="profile-banner" style={{ backgroundImage: bannerImage ? `url(${bannerImage})` : undefined }}>
+        <button type="button" className="btn btn--glass profile-banner-btn" onClick={() => setChoosingBanner(true)}>
           <ImageSquare size={16} aria-hidden /> Trocar banner
-        </label>
-        <input
-          id={bannerInput}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            if (f) setPatch({ banner: await imageToDataUrl(f, 1800, 600, 0.82) });
-            e.target.value = "";
-          }}
-        />
-        {profile.banner && (
-          <button type="button" className="btn btn--glass profile-banner-remove" onClick={() => setPatch({ banner: undefined })}>
-            Remover banner
-          </button>
-        )}
+          <span className="banner-count">
+            {banners.filter((b) => b.unlocked).length}/{banners.length}
+          </span>
+        </button>
       </div>
+      {choosingBanner && <BannerPicker onClose={() => setChoosingBanner(false)} />}
 
       <div className="profile-head">
         <div className="profile-avatar">

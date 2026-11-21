@@ -9,6 +9,16 @@ export type AchievementDef = {
   hidden?: boolean;
 };
 
+/** Banner de perfil que o jogo oferece; liberado por uma conquista do mesmo jogo. */
+export type BannerDef = {
+  id: string;
+  title: string;
+  /** imagem 3:1; sem imagem, usa o degradê da cor de destaque */
+  image?: string;
+  /** id da conquista (do mesmo jogo) que libera; sem isso, já vem liberado */
+  unlock?: string;
+};
+
 export type Game = {
   id: string;
   title: string;
@@ -21,6 +31,7 @@ export type Game = {
   tint: string;
   tagline?: string;
   achievements: AchievementDef[];
+  banners?: BannerDef[];
   /** adicionado pelo usuário (pode ser removido) */
   custom?: boolean;
 };
@@ -56,6 +67,7 @@ export type Profile = {
   avatar?: string;
   /** preset de avatar quando não há imagem */
   avatarPreset: number;
+  /** imagem própria (data URL ou endereço) ou banner liberado, no formato "ref:<jogo>:<banner>" */
   banner?: string;
   /** conquistas em destaque no perfil (chave gameId:id) */
   showcase: string[];

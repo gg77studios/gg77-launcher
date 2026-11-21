@@ -1,8 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { CATALOG, DEFAULT_STATE, LAUNCHER_ACHIEVEMENTS, LAUNCHER_ID, TIER_XP, unlockKey, XP_PER_LEVEL } from "./catalog";
+import {
+  bannerRef,
+  CATALOG,
+  DEFAULT_STATE,
+  LAUNCHER_ACHIEVEMENTS,
+  LAUNCHER_BANNERS,
+  LAUNCHER_ID,
+  TIER_XP,
+  unlockKey,
+  XP_PER_LEVEL,
+} from "./catalog";
 import { launchGame, listenGameEvents, loadKey, notify, saveKey } from "./platform";
 import { chime } from "./sound";
-import type { AchievementDef, Game, GameStats, Persisted, Profile, Settings, Tier, Unlock } from "./types";
+import type { AchievementDef, BannerDef, Game, GameStats, Persisted, Profile, Settings, Tier, Unlock } from "./types";
 
 type Action =
   | { type: "hydrate"; state: Persisted }
@@ -78,7 +88,17 @@ function reducer(s: Persisted, a: Action): Persisted {
   }
 }
 
-export type Toast = { key: string; title: string; description: string; game: string; xp: number; tier: Tier };
+export type Toast = { key: string; title: string; description: string; game: string; xp: number; tier: Tier; reward?: string };
+
+export type BannerOption = {
+  ref: string;
+  gameId: string;
+  gameTitle: string;
+  def: BannerDef;
+  unlocked: boolean;
+  /** título da conquista que libera (quando bloqueado) */
+  requirement?: string;
+};
 
 type Ctx = {
   state: Persisted;
@@ -95,6 +115,9 @@ type Ctx = {
   level: number;
   levelProgress: number;
   gameTitle: (gameId: string) => string;
+  banners: BannerOption[];
+  /** imagem do banner atual do perfil; vazio = degradê padrão */
+  bannerImage?: string;
 };
 
 const StoreCtx = createContext<Ctx | null>(null);
@@ -174,13 +197,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       seenRef.current.add(key);
       dispatch({ type: "unlock", unlock: u });
       const d = describe(u);
-      const toast: Toast = { key, title: d.title, description: d.description, game: gameTitle(u.gameId), xp: TIER_XP[d.tier], tier: d.tier };
+      const prize = (u.gameId === LAUNCHER_ID ? LAUNCHER_BANNERS : (games.find((g) => g.id === u.gameId)?.banners ?? [])).find(
+        (b) => b.unlock === u.id,
+      );
+      const toast: Toast = {
+        key,
+        title: d.title,
+        description: d.description,
+        game: gameTitle(u.gameId),
+        xp: TIER_XP[d.tier],
+        tier: d.tier,
+        reward: prize ? `Banner liberado: ${prize.title}` : undefined,
+      };
       setToasts((ts) => (ts.some((t) => t.key === key) ? ts : [...ts, toast]));
       const { sound, notifications } = stateRef.current.settings;
       if (sound) chime(d.tier);
       if (notifications && !document.hasFocus()) void notify(`Conquista: ${d.title}`, `${toast.game}, +${toast.xp} XP`);
     },
-    [describe, gameTitle],
+    [describe, gameTitle, games],
   );
 
   const dismissToast = useCallback((key: string) => setToasts((ts) => ts.filter((t) => t.key !== key)), []);
@@ -259,6 +293,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     () => Object.values(state.unlocks).reduce((a, u) => a + TIER_XP[describe(u).tier], 0),
     [state.unlocks, describe],
   );
+  const banners = useMemo<BannerOption[]>(() => {
+    const sources: Array<{ gameId: string; list: BannerDef[] }> = [
+      { gameId: LAUNCHER_ID, list: LAUNCHER_BANNERS },
+      ...games.map((g) => ({ gameId: g.id, list: g.banners ?? [] })),
+    ];
+    return sources.flatMap(({ gameId, list }) =>
+      list.map((def) => {
+        const unlocked = !def.unlock || !!state.unlocks[unlockKey(gameId, def.unlock)];
+        const req = def.unlock ? defsFor(gameId).find((d) => d.id === def.unlock) : undefined;
+        return {
+          ref: bannerRef(gameId, def.id),
+          gameId,
+          gameTitle: gameTitle(gameId),
+          def,
+          unlocked,
+          requirement: unlocked ? undefined : req?.hidden ? "uma conquista secreta" : (req?.title ?? def.unlock),
+        };
+      }),
+    );
+  }, [games, state.unlocks, defsFor, gameTitle]);
+
+  const current = state.profile.banner;
+  const bannerImage = current?.startsWith("ref:") ? banners.find((b) => b.ref === current)?.def.image : current;
+
   const level = Math.floor(xp / XP_PER_LEVEL) + 1;
   const levelProgress = (xp % XP_PER_LEVEL) / XP_PER_LEVEL;
 
@@ -277,6 +335,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     level,
     levelProgress,
     gameTitle,
+    banners,
+    bannerImage,
   };
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

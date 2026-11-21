@@ -1479,3 +1479,140 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- banners do perfil ---------- */
+
+.banner-count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.18);
+  font-size: 12px;
+}
+
+.dialog--wide {
+  width: min(980px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+
+.banner-groups {
+  display: grid;
+  gap: 22px;
+}
+
+.banner-groups h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 10px;
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.banner-groups h3 span {
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.banner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.banner-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-2);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.banner-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--ink-3);
+}
+
+.banner-tile[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.banner-tile:disabled {
+  cursor: not-allowed;
+}
+
+.banner-img {
+  display: block;
+  aspect-ratio: 3 / 1;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--accent) 75%, transparent), transparent 60%),
+    radial-gradient(90% 120% at 100% 100%, color-mix(in oklab, var(--accent) 35%, var(--surface-2)), transparent 70%),
+    var(--surface-2);
+  background-size: cover;
+  background-position: center;
+}
+
+.banner-tile[data-locked] .banner-img {
+  filter: grayscale(1) brightness(0.45) blur(1px);
+}
+
+.banner-cap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 10px;
+}
+
+.banner-cap strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.banner-cap span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.banner-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.banner-upload {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 110px;
+  border-style: dashed;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.toast-reward {
+  margin-top: 4px;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-text);
+}

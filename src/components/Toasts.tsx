@@ -41,6 +41,7 @@ export function Toasts() {
               <span>
                 {t.game}, +{t.xp} XP
               </span>
+              {t.reward && <em className="toast-reward">{t.reward}</em>}
             </span>
           </motion.button>
         ))}

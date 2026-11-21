@@ -1,4 +1,4 @@
-import type { AchievementDef, Game, Persisted, Tier } from "./types";
+import type { AchievementDef, BannerDef, Game, Persisted, Tier } from "./types";
 
 /** Jogos que já vêm no launcher. Para adicionar um novo jogo do grupo, inclua aqui. */
 export const CATALOG: Game[] = [
@@ -33,8 +33,28 @@ export const CATALOG: Game[] = [
       { id: "arena-top3", title: "Pódio da Arena", description: "Termine a temporada entre os 3 primeiros da Arena.", tier: "épica" },
       { id: "hall-da-fama", title: "Lenda da sala", description: "Entre para o hall da fama de uma sala.", tier: "épica", hidden: true },
     ],
+    // banners de perfil com a arte do próprio jogo, cada um liberado por uma conquista ligada a ele
+    banners: [
+      { id: "floresta", title: "Floresta Sombria", image: "/games/idle-legends/banners/floresta.jpg", unlock: "primeira-vitoria" },
+      { id: "minas", title: "Minas", image: "/games/idle-legends/banners/minas.jpg", unlock: "nivel-10" },
+      { id: "mercado", title: "Mercado", image: "/games/idle-legends/banners/mercado.jpg", unlock: "lendario" },
+      { id: "cerejeiras", title: "Bosque das Cerejeiras", image: "/games/idle-legends/banners/cerejeiras.jpg", unlock: "evento" },
+      { id: "cripta", title: "Cripta", image: "/games/idle-legends/banners/cripta.jpg", unlock: "feat_level_30" },
+      { id: "pantano", title: "Pântano", image: "/games/idle-legends/banners/pantano.jpg", unlock: "feat_prestige_1" },
+      { id: "floresta-chamas", title: "Floresta em chamas", image: "/games/idle-legends/banners/floresta-chamas.jpg", unlock: "feat_ruin_1" },
+      { id: "bestiario", title: "Bestiário", image: "/games/idle-legends/banners/bestiario.jpg", unlock: "feat_farm_50" },
+      { id: "caldeira", title: "Caldeira", image: "/games/idle-legends/banners/caldeira.jpg", unlock: "feat_prestige_3" },
+      { id: "caldeira-arrasada", title: "Caldeira arrasada", image: "/games/idle-legends/banners/caldeira-arrasada.jpg", unlock: "feat_ruin_all" },
+      { id: "arena", title: "Arena", image: "/games/idle-legends/banners/arena.jpg", unlock: "arena-top3" },
+      { id: "salao", title: "Salão da fama", image: "/games/idle-legends/banners/salao.jpg", unlock: "hall-da-fama" },
+    ],
   },
 ];
+
+/** Banners do próprio launcher. */
+export const LAUNCHER_BANNERS: BannerDef[] = [{ id: "padrao", title: "Padrão" }];
+
+export const bannerRef = (gameId: string, bannerId: string) => `ref:${gameId}:${bannerId}`;
 
 /** Conquistas do próprio launcher: liberadas pelo uso, sem precisar de integração. */
 export const LAUNCHER_ID = "launcher";
