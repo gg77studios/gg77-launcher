@@ -11,16 +11,27 @@ export const CATALOG: Game[] = [
     icon: "/games/idle-legends/icon.png",
     tint: "#1f2329",
     tagline: "RPG idle com arena, prestígio e hall da fama.",
-    // o jogo libera estas conquistas chamando window.GG77?.unlock(id) (ver docs/SDK.md)
+    // O jogo envia estas conquistas pelo SDK (client/src/lib/launcher.js no repositório do jogo).
+    // Os ids feat_* são os feitos do próprio jogo; os outros são momentos que só o launcher premia.
+    // Outras conquistas do jogo (bestiário, chefes, pódio de evento, medalhas de ouro) chegam com
+    // título próprio e aparecem como extras quando liberadas.
     achievements: [
       { id: "primeira-vitoria", title: "Primeiro sangue", description: "Vença a primeira luta.", tier: "comum" },
       { id: "nivel-10", title: "Aventureiro", description: "Chegue ao nível 10.", tier: "comum" },
-      { id: "nivel-50", title: "Veterano das masmorras", description: "Chegue ao nível 50.", tier: "rara" },
-      { id: "prestigio", title: "Renascido", description: "Faça o primeiro prestígio.", tier: "rara" },
-      { id: "lendario", title: "Brilho lendário", description: "Encontre um item lendário.", tier: "rara" },
-      { id: "evento", title: "Presente no evento", description: "Participe de um evento da temporada.", tier: "comum" },
+      { id: "lendario", title: "Brilho lendário", description: "Tenha um item lendário.", tier: "rara" },
+      { id: "evento", title: "Presente no evento", description: "Participe de um evento.", tier: "comum" },
+      { id: "feat_level_30", title: "No Auge", description: "Chegue ao nível 30.", tier: "rara" },
+      { id: "feat_prestige_1", title: "Renascido", description: "Faça o primeiro prestígio.", tier: "rara" },
+      { id: "feat_prestige_3", title: "Imortal", description: "Faça 3 prestígios.", tier: "épica" },
+      { id: "feat_ruin_1", title: "Terra Arrasada", description: "300 abates numa única exploração de uma área.", tier: "comum" },
+      { id: "feat_ruin_3", title: "Incendiário", description: "Terra Arrasada em 3 áreas.", tier: "rara" },
+      { id: "feat_ruin_all", title: "Fim do Mundo", description: "Terra Arrasada em todas as áreas.", tier: "épica" },
+      { id: "feat_farm_10", title: "Vigia", description: "10 horas de patrulha.", tier: "comum" },
+      { id: "feat_farm_50", title: "Batedor", description: "50 horas de patrulha.", tier: "rara" },
+      { id: "feat_farm_200", title: "Sentinela", description: "200 horas de patrulha.", tier: "épica" },
+      { id: "feat_medals_all", title: "Colecionador", description: "Medalha de ouro em todos os inimigos comuns.", tier: "épica" },
       { id: "arena-top3", title: "Pódio da Arena", description: "Termine a temporada entre os 3 primeiros da Arena.", tier: "épica" },
-      { id: "hall-da-fama", title: "Imortal", description: "Entre para o hall da fama.", tier: "épica", hidden: true },
+      { id: "hall-da-fama", title: "Lenda da sala", description: "Entre para o hall da fama de uma sala.", tier: "épica", hidden: true },
     ],
   },
 ];

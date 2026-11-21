@@ -46,7 +46,7 @@ export function unlock(id: string) {
 // if (player.level >= 10) unlock("nivel-10");
 ```
 
-Os ids cadastrados para o Idle Legends estão em `src/lib/catalog.ts`: `primeira-vitoria`, `nivel-10`, `nivel-50`, `prestigio`, `lendario`, `evento`, `arena-top3` e `hall-da-fama`.
+Os ids cadastrados para o Idle Legends estão em `src/lib/catalog.ts`: os 10 feitos do jogo (`feat_*`) e 6 momentos do launcher (`primeira-vitoria`, `nivel-10`, `lendario`, `evento`, `arena-top3`, `hall-da-fama`). A integração do jogo fica em `client/src/lib/launcher.js` no repositório do Idle Legends.
 
 ## Cadastrar um jogo novo no catálogo
 
