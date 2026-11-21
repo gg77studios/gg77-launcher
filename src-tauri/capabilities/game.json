@@ -1,10 +1,21 @@
 {
   "$schema": "../gen/schemas/remote-schema.json",
   "identifier": "game-bridge",
-  "description": "Páginas de jogo (sites remotos) só podem liberar conquistas do próprio jogo.",
-  "windows": ["game-*"],
+  "description": "Páginas de jogo (sites remotos e jogos instalados) só podem liberar conquistas do próprio jogo e pedir atualização.",
+  "windows": [
+    "game-*"
+  ],
   "remote": {
-    "urls": ["https://*", "http://localhost:*", "http://127.0.0.1:*"]
+    "urls": [
+      "https://*",
+      "http://localhost:*",
+      "http://127.0.0.1:*",
+      "gg77game://localhost/*",
+      "http://gg77game.localhost/*"
+    ]
   },
-  "permissions": ["allow-unlock-achievement"]
+  "permissions": [
+    "allow-unlock-achievement",
+    "allow-request-game-update"
+  ]
 }

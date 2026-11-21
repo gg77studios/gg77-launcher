@@ -60,10 +60,53 @@ export async function closeGame(gameId: string) {
   await invoke("close_game", { gameId });
 }
 
+/* ---------- jogos instalados (pacotes) ---------- */
+
+export type PackageStatus = {
+  installed: string | null;
+  latest: string | null;
+  size: number | null;
+  updateAvailable: boolean;
+  /** erro ao consultar o manifesto (sem internet, servidor fora...) */
+  error: string | null;
+};
+
+export type PackageProgress = { gameId: string; phase: "download" | "extract" | "done"; received: number; total: number };
+
+async function invokeCmd<T>(cmd: string, args: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<T>(cmd, args);
+}
+
+/** Estado do pacote; fora do app (navegador) não há instalação. */
+export async function checkGame(gameId: string, manifestUrl: string): Promise<PackageStatus | null> {
+  if (!isTauri) return null;
+  return invokeCmd<PackageStatus>("check_game", { gameId, manifestUrl });
+}
+
+export async function installGame(gameId: string, manifestUrl: string): Promise<string> {
+  return invokeCmd<string>("install_game", { gameId, manifestUrl });
+}
+
+export async function uninstallGame(gameId: string): Promise<void> {
+  await invokeCmd("uninstall_game", { gameId });
+}
+
+/** Devolve os arquivos que não conferem com o que foi instalado. */
+export async function verifyGame(gameId: string): Promise<string[]> {
+  return invokeCmd<string[]>("verify_game", { gameId });
+}
+
+export async function launchInstalledGame(gameId: string, title: string): Promise<void> {
+  await invokeCmd("launch_installed_game", { gameId, title });
+}
+
 type Handlers = {
   started: (gameId: string) => void;
   closed: (gameId: string, seconds: number) => void;
   unlocked: (p: UnlockPayload) => void;
+  progress: (p: PackageProgress) => void;
+  updateRequested: (gameId: string) => void;
 };
 
 /** Escuta os eventos que o Rust manda para a janela principal. */
@@ -74,6 +117,8 @@ export async function listenGameEvents(h: Handlers): Promise<() => void> {
     listen<string>("game-started", (e) => h.started(e.payload)),
     listen<{ gameId: string; seconds: number }>("game-closed", (e) => h.closed(e.payload.gameId, e.payload.seconds)),
     listen<UnlockPayload>("achievement-unlocked", (e) => h.unlocked(e.payload)),
+    listen<PackageProgress>("package-progress", (e) => h.progress(e.payload)),
+    listen<{ gameId: string }>("game-update-requested", (e) => h.updateRequested(e.payload.gameId)),
   ]);
   return () => offs.forEach((off) => off());
 }

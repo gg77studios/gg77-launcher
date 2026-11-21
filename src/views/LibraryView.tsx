@@ -1,11 +1,11 @@
-import { LockSimple, MagnifyingGlass, PencilSimple, Play, Plus, Stop, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, DownloadSimple, LockSimple, MagnifyingGlass, PencilSimple, Play, Plus, ShieldCheck, Stop, Trash } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { AchievementCard } from "../components/AchievementCard";
 import { GameDialog } from "../components/GameDialog";
 import { unlockKey } from "../lib/catalog";
 import { fmtDuration, fmtRelative } from "../lib/format";
-import { closeGame } from "../lib/platform";
-import { useStore } from "../lib/state";
+import { closeGame, launchInstalledGame } from "../lib/platform";
+import { type PackageState, useStore } from "../lib/state";
 import type { Game } from "../lib/types";
 
 const SDK_SNIPPET = `// no jogo, quando o jogador conquistar algo:
@@ -15,7 +15,8 @@ window.GG77?.unlock("primeira-vitoria", {
 });`;
 
 export function LibraryView() {
-  const { state, games, running, dispatch, play, defsFor, banners, describe } = useStore();
+  const { state, games, running, dispatch, play, defsFor, banners, describe, packages, installPackage, uninstallPackage, verifyPackage } =
+    useStore();
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<{ mode: "add" } | { mode: "edit"; game: Game } | null>(null);
   const [error, setError] = useState("");
@@ -34,14 +35,30 @@ export function LibraryView() {
   const isRunning = running.has(game.id);
   const rewards = banners.filter((b) => b.gameId === game.id);
 
-  const onPlay = async () => {
+  const pkg = game.package ? packages[game.id] : undefined;
+
+  const run = async (fn: () => Promise<unknown>) => {
     setError("");
     try {
-      await play(game);
+      await fn();
     } catch (e) {
       setError(String(e));
     }
   };
+
+  // jogo instalado com versão nova: o botão principal atualiza; "Jogar a x.y.z" abre a que já está
+  const launchCurrent = () => run(() => launchInstalledGame(game.id, game.title));
+
+  const onPrimary = () =>
+    run(async () => {
+      if (pkg?.updateAvailable && !isRunning) {
+        if (await installPackage(game)) await launchInstalledGame(game.id, game.title);
+        return;
+      }
+      await play(game);
+    });
+
+  const primary = primaryAction(game, pkg, isRunning);
 
   return (
     <div className="library">
@@ -50,10 +67,25 @@ export function LibraryView() {
         <h1 id="game-title">{game.title}</h1>
         {game.tagline && <p>{game.tagline}</p>}
         <div className="hero-actions">
-          <button type="button" className="btn btn--accent btn--play" onClick={onPlay}>
-            <Play size={20} weight="fill" aria-hidden />
-            {isRunning ? "Ir para o jogo" : "Jogar"}
-          </button>
+          {pkg?.busy === "install" ? (
+            <div className="btn btn--accent btn--play install-progress" role="status" aria-live="polite">
+              <DownloadSimple size={20} weight="bold" aria-hidden />
+              {progressLabel(pkg)}
+              <span className="install-bar" aria-hidden>
+                <i style={{ width: `${progressPct(pkg) * 100}%` }} />
+              </span>
+            </div>
+          ) : (
+            <button type="button" className="btn btn--accent btn--play" onClick={onPrimary} disabled={!!pkg?.busy}>
+              {primary.icon}
+              {primary.label}
+            </button>
+          )}
+          {pkg?.updateAvailable && !pkg.busy && (
+            <button type="button" className="btn glass glass--btn" onClick={() => void launchCurrent()}>
+              <Play size={16} weight="fill" aria-hidden /> Jogar a {pkg.installed}
+            </button>
+          )}
           {isRunning && (
             <button type="button" className="btn glass glass--btn" onClick={() => void closeGame(game.id)}>
               <Stop size={16} weight="fill" aria-hidden /> Fechar jogo
@@ -67,10 +99,27 @@ export function LibraryView() {
               <Trash size={16} aria-hidden /> Remover
             </button>
           )}
+          {pkg?.installed && !pkg.busy && !isRunning && (
+            <>
+              <button type="button" className="btn glass glass--btn" onClick={() => void verifyPackage(game)}>
+                <ShieldCheck size={16} aria-hidden /> Verificar arquivos
+              </button>
+              <button type="button" className="btn glass glass--btn" onClick={() => void uninstallPackage(game)}>
+                <Trash size={16} aria-hidden /> Desinstalar
+              </button>
+            </>
+          )}
         </div>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
+        {game.package && pkg && (
+          <p className="pkg-line">
+            {pkg.installed ? `Versão ${pkg.installed} instalada` : "Ainda não instalado"}
+            {pkg.updateAvailable && pkg.latest && <b> · versão {pkg.latest} disponível</b>}
+            {!pkg.installed && pkg.error && game.url && <span> · pacote indisponível, abrindo a versão web</span>}
+          </p>
+        )}
+        {(error || pkg?.message) && (
+          <p className={error ? "form-error" : "pkg-message"} role={error ? "alert" : "status"}>
+            {error || pkg?.message}
           </p>
         )}
 
@@ -129,8 +178,16 @@ export function LibraryView() {
                     {running.has(g.id) && <i className="live-dot" aria-label="em execução" />}
                   </span>
                   <span className="capsule-title">{g.title}</span>
-                  <span className="capsule-sub">
-                    {running.has(g.id) ? "jogando" : st?.seconds ? fmtDuration(st.seconds) : "nunca jogado"}
+                  <span className="capsule-sub" data-update={packages[g.id]?.updateAvailable || undefined}>
+                    {running.has(g.id)
+                      ? "jogando"
+                      : packages[g.id]?.updateAvailable
+                        ? "atualização disponível"
+                        : g.package && packages[g.id] && !packages[g.id]?.installed && !packages[g.id]?.error
+                          ? "não instalado"
+                          : st?.seconds
+                            ? fmtDuration(st.seconds)
+                            : "nunca jogado"}
                   </span>
                 </button>
               </li>
@@ -216,4 +273,30 @@ export function LibraryView() {
       )}
     </div>
   );
+}
+
+const fmtMb = (bytes?: number | null) => (bytes ? `${(bytes / 1048576).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB` : "");
+
+function primaryAction(game: Game, pkg: PackageState | undefined, isRunning: boolean) {
+  const play = { icon: <Play size={20} weight="fill" aria-hidden />, label: isRunning ? "Ir para o jogo" : "Jogar" };
+  if (!game.package || isRunning || !pkg) return play;
+  if (pkg.updateAvailable) return { icon: <ArrowClockwise size={20} weight="bold" aria-hidden />, label: `Atualizar (${fmtMb(pkg.size)})` };
+  if (!pkg.installed && !pkg.error) {
+    return { icon: <DownloadSimple size={20} weight="bold" aria-hidden />, label: `Instalar${pkg.size ? ` (${fmtMb(pkg.size)})` : ""}` };
+  }
+  return play;
+}
+
+function progressPct(pkg: PackageState) {
+  const p = pkg.progress;
+  if (!p || !p.total) return 0;
+  return Math.min(1, p.received / p.total);
+}
+
+function progressLabel(pkg: PackageState) {
+  const p = pkg.progress;
+  if (!p) return "Preparando…";
+  if (p.phase === "extract") return "Instalando…";
+  if (p.phase === "done") return "Pronto";
+  return `Baixando ${Math.round(progressPct(pkg) * 100)}%`;
 }

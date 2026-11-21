@@ -11,7 +11,21 @@ import {
   unlockKey,
   XP_PER_LEVEL,
 } from "./catalog";
-import { launchGame, listenGameEvents, loadKey, notify, saveKey } from "./platform";
+import {
+  checkGame,
+  closeGame,
+  installGame,
+  launchGame,
+  launchInstalledGame,
+  listenGameEvents,
+  loadKey,
+  notify,
+  type PackageProgress,
+  type PackageStatus,
+  saveKey,
+  uninstallGame,
+  verifyGame,
+} from "./platform";
 import { chime } from "./sound";
 import type { AchievementDef, BannerDef, FrameDef, Game, GameStats, Persisted, Profile, Settings, Tier, Unlock } from "./types";
 
@@ -101,6 +115,14 @@ export type Toast = {
   pixel?: boolean;
 };
 
+/** Estado de um jogo instalável, no launcher. */
+export type PackageState = Partial<PackageStatus> & {
+  busy?: "install" | "uninstall" | "verify";
+  progress?: PackageProgress;
+  /** última falha de instalação/verificação, para mostrar ao usuário */
+  message?: string;
+};
+
 export type FrameOption = { def: FrameDef; unlocked: boolean; requirement?: string };
 
 export type Described = { title: string; description: string; tier: Tier; hidden?: boolean; icon?: string; pixel?: boolean };
@@ -124,6 +146,10 @@ type Ctx = {
   dismissToast: (key: string) => void;
   dispatch: React.Dispatch<Action>;
   play: (game: Game) => Promise<void>;
+  packages: Record<string, PackageState>;
+  installPackage: (game: Game) => Promise<boolean>;
+  uninstallPackage: (game: Game) => Promise<void>;
+  verifyPackage: (game: Game) => Promise<void>;
   defsFor: (gameId: string) => AchievementDef[];
   describe: (u: Unlock) => Described;
   frames: FrameOption[];
@@ -150,6 +176,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, DEFAULT_STATE);
   const [ready, setReady] = useState(false);
   const [running, setRunning] = useState<Set<string>>(new Set());
+  const [packages, setPackages] = useState<Record<string, PackageState>>({});
+  const patchPkg = useCallback(
+    (id: string, patch: Partial<PackageState>) => setPackages((p) => ({ ...p, [id]: { ...p[id], ...patch } })),
+    [],
+  );
   const [toasts, setToasts] = useState<Toast[]>([]);
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -264,6 +295,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
         dispatch({ type: "session", gameId, seconds });
       },
+      progress: (p) => patchPkg(p.gameId, { progress: p }),
+      updateRequested: (gameId) => updateRef.current(gameId),
       unlocked: (p) =>
         unlockRef.current({
           gameId: p.gameId,
@@ -283,11 +316,100 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const play = useCallback(async (game: Game) => {
-    await launchGame(game.id, game.url, game.title);
-    // fora do app (navegador) não há evento de início: registra aqui
-    if (!("__TAURI_INTERNALS__" in window)) dispatch({ type: "started", gameId: game.id, at: Date.now() });
-  }, []);
+  const refreshPackage = useCallback(
+    async (game: Game) => {
+      if (!game.package) return;
+      const st = await checkGame(game.id, game.package.manifest).catch(() => null);
+      if (st) patchPkg(game.id, st);
+    },
+    [patchPkg],
+  );
+
+  const installPackage = useCallback(
+    async (game: Game) => {
+      if (!game.package) return false;
+      patchPkg(game.id, { busy: "install", message: undefined, progress: undefined });
+      try {
+        await installGame(game.id, game.package.manifest);
+        patchPkg(game.id, { busy: undefined, progress: undefined });
+        await refreshPackage(game);
+        return true;
+      } catch (e) {
+        patchPkg(game.id, { busy: undefined, progress: undefined, message: String(e) });
+        return false;
+      }
+    },
+    [patchPkg, refreshPackage],
+  );
+
+  const uninstallPackage = useCallback(
+    async (game: Game) => {
+      patchPkg(game.id, { busy: "uninstall", message: undefined });
+      try {
+        await uninstallGame(game.id);
+      } finally {
+        patchPkg(game.id, { busy: undefined });
+        await refreshPackage(game);
+      }
+    },
+    [patchPkg, refreshPackage],
+  );
+
+  const verifyPackage = useCallback(
+    async (game: Game) => {
+      patchPkg(game.id, { busy: "verify", message: undefined });
+      try {
+        const bad = await verifyGame(game.id);
+        patchPkg(game.id, {
+          busy: undefined,
+          message: bad.length ? `${bad.length} arquivo(s) alterado(s) ou faltando. Reinstale o jogo.` : "Arquivos conferidos: tudo certo.",
+        });
+      } catch (e) {
+        patchPkg(game.id, { busy: undefined, message: String(e) });
+      }
+    },
+    [patchPkg],
+  );
+
+  // confere instalação e atualizações dos jogos com pacote ao abrir o launcher
+  useEffect(() => {
+    if (!ready) return;
+    for (const g of games) void refreshPackage(g);
+  }, [ready, games, refreshPackage]);
+
+  const play = useCallback(
+    async (game: Game) => {
+      if (game.package && "__TAURI_INTERNALS__" in window) {
+        const st = packagesRef.current[game.id];
+        if (st?.installed) {
+          await launchInstalledGame(game.id, game.title);
+          return;
+        }
+        // manifesto fora do ar e o jogo ainda tem endereço web: usa a versão web enquanto isso
+        if (!(st?.error && game.url)) {
+          if (await installPackage(game)) await launchInstalledGame(game.id, game.title);
+          return;
+        }
+      }
+      await launchGame(game.id, game.url, game.title);
+      // fora do app (navegador) não há evento de início: registra aqui
+      if (!("__TAURI_INTERNALS__" in window)) dispatch({ type: "started", gameId: game.id, at: Date.now() });
+    },
+    [installPackage],
+  );
+
+  // o jogo pediu atualização (window.GG77.requestUpdate): fecha, atualiza e abre de novo
+  const packagesRef = useRef(packages);
+  packagesRef.current = packages;
+  const gamesRef = useRef(games);
+  gamesRef.current = games;
+  const updateRef = useRef<(gameId: string) => void>(() => {});
+  updateRef.current = async (gameId: string) => {
+    const game = gamesRef.current.find((g) => g.id === gameId);
+    if (!game?.package) return;
+    await closeGame(gameId);
+    if (await installPackage(game)) await launchInstalledGame(game.id, game.title);
+  };
 
   // conquistas do launcher, avaliadas a partir do próprio estado
   useEffect(() => {
@@ -374,6 +496,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ready,
     games,
     running,
+    packages,
+    installPackage,
+    uninstallPackage,
+    verifyPackage,
     toasts,
     dismissToast,
     dispatch,

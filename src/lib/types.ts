@@ -46,6 +46,8 @@ export type Game = {
   /** ícones em pixel art: desenhar sem suavizar */
   pixelArt?: boolean;
   banners?: BannerDef[];
+  /** jogo instalável: manifesto assinado com o pacote da versão atual */
+  package?: { manifest: string };
   /** adicionado pelo usuário (pode ser removido) */
   custom?: boolean;
 };

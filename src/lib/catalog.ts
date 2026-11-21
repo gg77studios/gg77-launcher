@@ -11,7 +11,9 @@ export const CATALOG: Game[] = [
   {
     id: "idle-legends",
     title: "Idle Legends",
+    // instalado pelo launcher; enquanto o pacote não estiver no ar, abre a versão web
     url: "https://arena.forjahub.online",
+    package: { manifest: "https://arena.forjahub.online/launcher/idle-legends.json" },
     cover: "/games/idle-legends/cover.jpg",
     banner: "/games/idle-legends/banner.jpg",
     icon: "/games/idle-legends/icon.png",

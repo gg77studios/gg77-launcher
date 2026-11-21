@@ -20,6 +20,10 @@
         icon: info.icon == null ? null : String(info.icon),
       });
     },
+    // pede ao launcher para fechar o jogo, baixar a versão nova e abrir de novo
+    requestUpdate: function () {
+      return invoke("request_game_update", {});
+    },
   });
   try {
     window.dispatchEvent(new Event("gg77:ready"));

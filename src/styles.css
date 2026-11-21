@@ -2229,3 +2229,51 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- instalação de jogos ---------- */
+
+.install-progress {
+  position: relative;
+  overflow: hidden;
+  min-width: 230px;
+  cursor: progress;
+}
+
+.install-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgb(0 0 0 / 0.15);
+}
+
+.install-bar i {
+  display: block;
+  height: 100%;
+  background: var(--on-accent);
+  opacity: 0.6;
+  transition: width 0.2s linear;
+}
+
+.pkg-line {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.pkg-line b {
+  color: var(--accent-text);
+}
+
+.pkg-message {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.capsule-sub[data-update] {
+  color: var(--accent-text);
+  font-weight: 700;
+}
