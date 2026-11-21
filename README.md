@@ -10,6 +10,13 @@ Launcher de desktop (Tauri v2 + React) para os jogos de navegador do grupo. Func
 
 Tudo fica salvo no próprio computador (`gg77.json` na pasta de dados do app).
 
+## Instalar (para quem só vai jogar)
+
+Baixe o instalador na página de [Releases](../../releases) do repositório.
+
+- **Windows:** o arquivo `GG77.Launcher_x.y.z_x64-setup.exe`. Ele instala só para o seu usuário (não pede senha de administrador) e baixa o WebView2 sozinho se o Windows não tiver. Como o instalador não é assinado, o Windows mostra "O Windows protegeu o computador": clique em **Mais informações** e depois em **Executar assim mesmo**.
+- **Linux:** o `.AppImage` roda direto (dê permissão de execução), ou instale o `.deb` com `sudo apt install ./arquivo.deb`.
+
 ## Rodar
 
 Pré-requisitos no Linux (Ubuntu/Debian):
@@ -26,7 +33,7 @@ npm run app:build   # gera os instaladores em src-tauri/target/release/bundle
 npm run dev         # só a interface no navegador (sem Rust; os jogos abrem em aba nova)
 ```
 
-No Linux, `app:build` gera `.deb`, `.rpm` e `.AppImage`. Para Windows (`.exe`/`.msi`) e macOS (`.dmg`), compile em cada sistema ou use o workflow `.github/workflows/release.yml`, que gera os três quando uma tag `v*` é publicada no GitHub.
+No Linux, `app:build` gera `.deb`, `.rpm` e `.AppImage`. O instalador de Windows (`-setup.exe` e `.msi`) sai do workflow `.github/workflows/release.yml`: publicar uma tag `v*` roda o build em Windows e Linux e anexa os instaladores numa release. Para gerar uma versão nova, suba a versão em `src-tauri/tauri.conf.json` e `package.json` e crie a tag (`git tag v0.2.0 && git push origin v0.2.0`).
 
 ## Estrutura
 

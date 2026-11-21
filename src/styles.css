@@ -1873,3 +1873,16 @@ textarea {
 .capsule-art .live-dot {
   z-index: 1;
 }
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.4));
+}

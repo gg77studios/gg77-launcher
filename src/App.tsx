@@ -53,6 +53,7 @@ export function App() {
 
       <aside className="side glass">
         <div className="logo">
+          <img className="logo-icon" src="/icon.png" alt="" width={30} height={30} />
           <span className="logo-mark">GG77</span>
         </div>
         <nav aria-label="Seções">

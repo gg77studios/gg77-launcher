@@ -1,7 +1,8 @@
 name: release
 
-# Gera os instaladores de Windows, macOS e Linux quando uma tag v* é publicada
-# e anexa tudo num rascunho de release no GitHub.
+# Gera os instaladores de Windows e Linux quando uma tag v* é publicada
+# e anexa tudo numa release do GitHub. macOS fica de fora: sem conta de
+# desenvolvedor Apple o app não abre lá, e o runner de Mac gasta 10x mais minutos.
 on:
   push:
     tags: ["v*"]
@@ -17,8 +18,6 @@ jobs:
         include:
           - platform: windows-latest
             args: ""
-          - platform: macos-latest
-            args: "--target universal-apple-darwin"
           - platform: ubuntu-22.04
             args: ""
     runs-on: ${{ matrix.platform }}
@@ -37,8 +36,6 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -52,6 +49,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "GG77 Launcher ${{ github.ref_name }}"
-          releaseBody: "Baixe o instalador do seu sistema abaixo."
-          releaseDraft: true
+          releaseBody: "Windows: baixe o arquivo terminado em -setup.exe. Linux: .AppImage (roda direto) ou .deb."
+          releaseDraft: false
           args: ${{ matrix.args }}
