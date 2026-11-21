@@ -5,6 +5,7 @@ Launcher de desktop (Tauri v2 + React) para os jogos de navegador do grupo. Func
 - **Biblioteca:** os jogos do catálogo mais os que cada pessoa adicionar por endereço. Cada jogo abre numa janela própria, sem barra de navegador.
 - **Tempo de jogo:** conta as sessões, a última vez que jogou e os dias jogados.
 - **Conquistas:** as do launcher (pelo uso) e as que os jogos liberam pelo SDK (`window.GG77.unlock`, ver [docs/SDK.md](docs/SDK.md)). Cada conquista dá XP e sobe o nível do perfil, e aparece um aviso no canto da tela com som e notificação do sistema.
+- **Jogo novo:** o passo a passo para um jogo entrar no launcher (build, SDK, servidor, pacote, catálogo, testes) está em [docs/NOVO-JOGO.md](docs/NOVO-JOGO.md).
 - **Perfil:** apelido, avatar (foto ou cor), banner, frase e uma vitrine com 3 conquistas.
 - **Personalização:** tema (grafite, meia-noite, claro), cor de destaque e fundo com a arte do jogo.
 
