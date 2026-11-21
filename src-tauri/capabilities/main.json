@@ -15,6 +15,8 @@
     "allow-check-game",
     "allow-install-game",
     "allow-uninstall-game",
-    "allow-verify-game"
+    "allow-verify-game",
+    "updater:default",
+    "process:allow-restart"
   ]
 }

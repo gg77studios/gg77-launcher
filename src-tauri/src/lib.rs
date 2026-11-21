@@ -163,6 +163,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         // arquivos dos jogos instalados: gg77game://localhost/<jogo>/<caminho>
         // (no Windows o WebView2 expõe como http://gg77game.localhost/<jogo>/<caminho>)
         .register_asynchronous_uri_scheme_protocol("gg77game", |ctx, request, responder| {

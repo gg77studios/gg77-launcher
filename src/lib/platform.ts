@@ -1,7 +1,7 @@
 /* Ponte com o Tauri. Fora do app (npm run dev no navegador) tudo cai para
    localStorage e window.open, para dar para desenvolver a interface sem compilar o Rust. */
 
-import type { UnlockPayload } from "./types";
+import type { Game, UnlockPayload } from "./types";
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -121,6 +121,84 @@ export async function listenGameEvents(h: Handlers): Promise<() => void> {
     listen<{ gameId: string }>("game-update-requested", (e) => h.updateRequested(e.payload.gameId)),
   ]);
   return () => offs.forEach((off) => off());
+}
+
+/* ---------- atualização do próprio launcher ---------- */
+
+export type LauncherUpdate = {
+  version: string;
+  /** baixa, instala e reinicia; `onProgress` recebe de 0 a 1 */
+  install: (onProgress: (fraction: number) => void) => Promise<void>;
+};
+
+/** Versão nova do launcher no latest.json da última release (null = em dia ou fora do app). */
+export async function checkLauncherUpdate(): Promise<LauncherUpdate | null> {
+  if (!isTauri) return null;
+  const { check } = await import("@tauri-apps/plugin-updater");
+  const update = await check();
+  if (!update) return null;
+  return {
+    version: update.version,
+    install: async (onProgress) => {
+      let total = 0;
+      let received = 0;
+      await update.downloadAndInstall((e) => {
+        if (e.event === "Started") total = e.data.contentLength ?? 0;
+        else if (e.event === "Progress") {
+          received += e.data.chunkLength;
+          if (total) onProgress(Math.min(1, received / total));
+        }
+      });
+      const { relaunch } = await import("@tauri-apps/plugin-process");
+      await relaunch();
+    },
+  };
+}
+
+/* ---------- catálogo remoto ---------- */
+
+/** Catálogo publicado no GitHub Pages do gg77-builds (scripts/publish-catalog.mjs). */
+export const CATALOG_URL = "https://gg77studios.github.io/gg77-builds/catalog/catalog.json";
+
+/** Caminho relativo ao catálogo vira endereço completo; "/..." (arquivo do launcher) e URLs ficam. */
+function resolveAsset(value: string | undefined): string | undefined {
+  if (!value || value.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(value)) return value;
+  return new URL(value, CATALOG_URL).href;
+}
+
+function isGame(g: unknown): g is Game {
+  const x = g as Partial<Game> | null;
+  return (
+    !!x &&
+    typeof x.id === "string" &&
+    /^[a-z0-9_-]+$/.test(x.id) &&
+    typeof x.title === "string" &&
+    typeof x.tint === "string" &&
+    Array.isArray(x.achievements)
+  );
+}
+
+/** Jogos do catálogo remoto, com as imagens em endereço completo; null se não deu para ler. */
+export async function fetchRemoteCatalog(): Promise<Game[] | null> {
+  try {
+    const res = await fetch(CATALOG_URL, { cache: "no-cache" });
+    if (!res.ok) return null;
+    const data: unknown = await res.json();
+    const list = Array.isArray(data) ? data : (data as { games?: unknown })?.games;
+    if (!Array.isArray(list)) return null;
+    return list.filter(isGame).map((g) => ({
+      ...g,
+      url: typeof g.url === "string" ? g.url : "",
+      cover: resolveAsset(g.cover),
+      banner: resolveAsset(g.banner),
+      icon: resolveAsset(g.icon),
+      achievements: g.achievements.map((a) => ({ ...a, icon: resolveAsset(a.icon) })),
+      iconRules: g.iconRules?.map((r) => ({ ...r, icon: resolveAsset(r.icon) ?? r.icon })),
+      banners: g.banners?.map((b) => ({ ...b, image: resolveAsset(b.image) ?? b.image })),
+    }));
+  } catch {
+    return null;
+  }
 }
 
 /** Notificação do sistema, usada quando o launcher está atrás da janela do jogo. */

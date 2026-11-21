@@ -2277,3 +2277,42 @@ textarea {
   color: var(--accent-text);
   font-weight: 700;
 }
+
+/* ---- versão nova do launcher (barra lateral, acima do perfil) ---- */
+.launcher-update {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 18px;
+  font-size: 13px;
+}
+
+.launcher-update + .me {
+  margin-top: 10px;
+}
+
+.launcher-update span {
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.launcher-update .btn {
+  justify-content: center;
+}
+
+.launcher-update-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.launcher-update-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}

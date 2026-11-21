@@ -103,9 +103,18 @@ descrito no topo de `scripts/make-package.mjs`.
 
 ## 5. Cadastrar no catálogo do launcher
 
-Hoje o catálogo está no código: `CATALOG` em `src/lib/catalog.ts`, imagens em `public/games/<id>/`.
-Na fase 2 do plano ele passa a ser um `catalog.json` remoto e o jogo aparece sem nova versão do
-launcher; esta seção muda quando isso sair.
+O catálogo é escrito em `CATALOG` (`src/lib/catalog.ts`), com as imagens em `public/games/<id>/`, e
+publicado no GitHub Pages do `gg77-builds`:
+
+```bash
+node scripts/publish-catalog.mjs --dry-run   # gera em ./catalog-out para conferir
+node scripts/publish-catalog.mjs             # commit + push no gg77-builds (Pages atualiza em ~1 min)
+```
+
+O launcher (0.5.0+) lê `https://gg77studios.github.io/gg77-builds/catalog/catalog.json` ao abrir, guarda
+a última cópia e usa o catálogo embutido se estiver offline. **Jogo novo aparece para todo mundo sem
+nova versão do launcher.** Ainda vale lançar uma versão do launcher de vez em quando, para o catálogo
+embutido (primeira abertura, offline) ficar em dia.
 
 ```ts
 {
@@ -127,7 +136,7 @@ launcher; esta seção muda quando isso sair.
 }
 ```
 
-Ícones de conquista: 192x192 PNG. Banners de perfil: 1600x900 JPG, cada um liberado por uma conquista.
+Ícones de conquista: 192x192 PNG. Banners de perfil: 1500x500 JPG (3:1), cada um liberado por uma conquista.
 
 ## 6. Testar antes de publicar
 
@@ -162,4 +171,5 @@ chamadas à API, uma página de sonda no lugar do `index.html` pode reportar res
   Por isso o prefixo nas chaves. O isolamento por jogo está previsto antes do segundo jogo.
 - As conquistas são informadas pelo cliente. Para um grupo de amigos é aceitável; validação pelo
   servidor do jogo fica para depois.
-- No Linux, só o AppImage do launcher vai se atualizar sozinho (fase 2).
+- O launcher se atualiza sozinho (0.5.0+) no Windows e no AppImage do Linux. Quem instalou o `.deb`
+  ou o `.rpm` vê o aviso e baixa a versão nova na página de releases.

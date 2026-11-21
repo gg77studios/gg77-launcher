@@ -1,6 +1,6 @@
 [package]
 name = "gg77-launcher"
-version = "0.4.0"
+version = "0.5.0"
 description = "Launcher de desktop para os jogos de navegador do grupo"
 edition = "2021"
 
@@ -15,6 +15,9 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-store = "2"
 tauri-plugin-notification = "2"
+# o launcher se atualiza sozinho (latest.json nas releases do GitHub)
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # pacotes de jogo: download, integridade, assinatura e extração

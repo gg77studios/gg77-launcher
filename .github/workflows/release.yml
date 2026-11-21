@@ -46,9 +46,14 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # assina as atualizações (o launcher confere com a chave pública do tauri.conf.json)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "GG77 Launcher ${{ github.ref_name }}"
-          releaseBody: "Windows: baixe o arquivo terminado em -setup.exe. Linux: .AppImage (roda direto) ou .deb."
+          releaseBody: "Windows: baixe o arquivo terminado em -setup.exe. Linux: .AppImage (roda direto e se atualiza sozinho) ou .deb."
           releaseDraft: false
+          # latest.json: o que o launcher instalado consulta para se atualizar
+          includeUpdaterJson: true
           args: ${{ matrix.args }}

@@ -2,6 +2,7 @@ import { PaintBrush, SquaresFour, Trophy, UserCircle } from "@phosphor-icons/rea
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { Avatar } from "./components/Avatar";
+import { LauncherUpdate } from "./components/LauncherUpdate";
 import { Toasts } from "./components/Toasts";
 import { inkOn } from "./lib/format";
 import { useStore } from "./lib/state";
@@ -66,6 +67,7 @@ export function App() {
             </button>
           ))}
         </nav>
+        <LauncherUpdate />
         <button type="button" className="me" onClick={() => setView("perfil")} title="Abrir perfil">
           <Avatar profile={profile} size={40} />
           <span className="me-text">

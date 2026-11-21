@@ -14,6 +14,7 @@ import {
 import {
   checkGame,
   closeGame,
+  fetchRemoteCatalog,
   installGame,
   launchGame,
   launchInstalledGame,
@@ -208,9 +209,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (ready) void saveKey("state", state);
   }, [state, ready]);
 
+  // Catálogo remoto (GitHub Pages do gg77-builds): jogo novo e arte nova sem reinstalar o launcher.
+  // A última cópia fica salva; sem internet vale ela, e sem nenhuma vale o catálogo embutido.
+  const [remote, setRemote] = useState<Game[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void loadKey<Game[]>("catalog").then((cached) => {
+      if (!cancelled && cached?.length) setRemote((r) => r ?? cached);
+    });
+    void fetchRemoteCatalog().then((list) => {
+      if (cancelled || !list?.length) return;
+      setRemote(list);
+      void saveKey("catalog", list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const catalog = useMemo<Game[]>(() => {
+    if (!remote) return CATALOG;
+    // o remoto substitui o embutido jogo a jogo; jogos só do embutido continuam
+    const ids = new Set(remote.map((g) => g.id));
+    return [...remote, ...CATALOG.filter((g) => !ids.has(g.id))];
+  }, [remote]);
+
   const games = useMemo<Game[]>(
-    () => [...CATALOG.map((g) => ({ ...g, ...state.overrides[g.id] })), ...state.customGames],
-    [state.overrides, state.customGames],
+    () => [...catalog.map((g) => ({ ...g, ...state.overrides[g.id] })), ...state.customGames],
+    [catalog, state.overrides, state.customGames],
   );
 
   const gameTitle = useCallback(
