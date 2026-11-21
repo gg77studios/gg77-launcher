@@ -40,7 +40,9 @@ type Action =
   | { type: "removeGame"; id: string }
   | { type: "started"; gameId: string; at: number }
   | { type: "session"; gameId: string; seconds: number }
-  | { type: "unlock"; unlock: Unlock };
+  | { type: "unlock"; unlock: Unlock }
+  /** dados da nuvem (outro PC): conquistas que faltam entram sem aviso; tempo de jogo fica com o maior */
+  | { type: "cloudMerge"; unlocks: Unlock[]; stats: Array<{ gameId: string; seconds: number; sessions: number; lastPlayed: number | null }> };
 
 const EMPTY_STATS: GameStats = { seconds: 0, sessions: 0, longestSession: 0 };
 
@@ -100,6 +102,24 @@ function reducer(s: Persisted, a: Action): Persisted {
       const key = unlockKey(a.unlock.gameId, a.unlock.id);
       if (s.unlocks[key]) return s;
       return { ...s, unlocks: { ...s.unlocks, [key]: a.unlock } };
+    }
+    case "cloudMerge": {
+      const unlocks = { ...s.unlocks };
+      for (const u of a.unlocks) {
+        const key = unlockKey(u.gameId, u.id);
+        if (!unlocks[key] || u.at < unlocks[key].at) unlocks[key] = { ...unlocks[key], ...u };
+      }
+      const stats = { ...s.stats };
+      for (const c of a.stats) {
+        const st = stats[c.gameId] ?? EMPTY_STATS;
+        stats[c.gameId] = {
+          ...st,
+          seconds: Math.max(st.seconds, c.seconds),
+          sessions: Math.max(st.sessions, c.sessions),
+          lastPlayed: Math.max(st.lastPlayed ?? 0, c.lastPlayed ?? 0) || undefined,
+        };
+      }
+      return { ...s, unlocks, stats };
     }
   }
 }

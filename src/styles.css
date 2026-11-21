@@ -2316,3 +2316,218 @@ textarea {
   background: var(--accent);
   transition: width 0.2s ease;
 }
+
+/* ---------- amigos e conta GG77 ---------- */
+
+.friends {
+  display: grid;
+  gap: 16px;
+  max-width: 920px;
+}
+
+.friends h1 {
+  margin: 0 0 4px;
+  font-family: var(--display);
+  font-size: 24px;
+}
+
+.signin {
+  max-width: 460px;
+}
+
+.signin p {
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+
+.signin .btn--accent {
+  width: 100%;
+  justify-content: center;
+}
+
+.link-btn {
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.link-btn.danger {
+  color: var(--danger);
+}
+
+.friends-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sync-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.add-friend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.add-friend .search {
+  flex: 1 1 260px;
+}
+
+.add-friend .pkg-message {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.friend-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px;
+  border-radius: 16px;
+}
+
+.friend-open {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.friend-open:hover,
+.friend-open:focus-visible {
+  background: var(--glass-soft);
+}
+
+.friend-avatar {
+  position: relative;
+  display: inline-grid;
+}
+
+.presence-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--glass-strong);
+  background: var(--ink-3);
+}
+
+.friend[data-status="online"] .presence-dot {
+  background: #3ecf8e;
+}
+
+.friend[data-status="playing"] .presence-dot {
+  background: var(--accent);
+}
+
+.friend-name {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.friend-name span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.friend[data-status="playing"] .friend-name span {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.friends-sub {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.friend-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.friend-profile-head > div {
+  flex: 1;
+}
+
+.friend-profile-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 20px;
+}
+
+.friend-profile-head p {
+  margin: 2px 0 0;
+}
+
+.friend-achievements {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friend-achievements li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.friend-achievements img {
+  border-radius: 10px;
+}
+
+.friend-achievements img[data-pixel] {
+  image-rendering: pixelated;
+}
+
+.friend-achievements li > span {
+  display: grid;
+  font-size: 13px;
+}
+
+.ach-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--glass-soft);
+}
+

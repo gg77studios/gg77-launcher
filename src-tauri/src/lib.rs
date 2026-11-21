@@ -158,9 +158,67 @@ fn request_game_update(window: WebviewWindow) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Sessão da conta GG77, mantida pela janela principal (que renova o token de acesso).
+/// Fica só na memória do Rust: a janela do jogo nunca vê este token.
+#[derive(Default)]
+struct HubSession {
+    url: Option<String>,
+    token: Option<String>,
+}
+
+type HubState = std::sync::Mutex<HubSession>;
+
+#[tauri::command]
+fn set_hub_session(state: tauri::State<'_, HubState>, url: Option<String>, token: Option<String>) {
+    if let Ok(mut s) = state.lock() {
+        s.url = url.filter(|u| u.starts_with("https://") || u.starts_with("http://"));
+        s.token = token;
+    }
+}
+
+#[derive(Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GameSession {
+    token: String,
+    nickname: String,
+}
+
+/// Login único (`window.GG77.getSession()`): pede ao hub um token curto com este jogo como
+/// audiência. Só para jogos instalados (pacote assinado), nunca para páginas da web abertas
+/// como jogo.
+#[tauri::command]
+async fn get_game_session(window: WebviewWindow, state: tauri::State<'_, HubState>) -> Result<GameSession, String> {
+    let game_id = game_of(&window)?;
+    let url = window.url().map_err(|e| e.to_string())?;
+    let installed = url.scheme() == "gg77game" || url.host_str() == Some("gg77game.localhost");
+    if !installed {
+        return Err("o login pelo launcher só vale para jogos instalados".into());
+    }
+    let (hub, token) = {
+        let s = state.lock().map_err(|_| "sessão indisponível".to_string())?;
+        (s.url.clone(), s.token.clone())
+    };
+    let (Some(hub), Some(token)) = (hub, token) else {
+        return Err("entre na sua conta GG77 no launcher".into());
+    };
+    let resp = reqwest::Client::new()
+        .post(format!("{}/games/{}/session", hub.trim_end_matches('/'), game_id))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| format!("sem conexão com a conta GG77 ({e})"))?;
+    match resp.status().as_u16() {
+        200 => resp.json::<GameSession>().await.map_err(|_| "resposta inválida da conta GG77".to_string()),
+        401 => Err("a sessão do launcher expirou; abra o launcher para renovar".into()),
+        404 => Err("este jogo não entra pela conta GG77".into()),
+        code => Err(format!("a conta GG77 respondeu {code}")),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(HubState::default())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -187,6 +245,8 @@ pub fn run() {
             close_game,
             unlock_achievement,
             request_game_update,
+            set_hub_session,
+            get_game_session,
             packages::check_game,
             packages::install_game,
             packages::uninstall_game,

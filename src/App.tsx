@@ -1,4 +1,4 @@
-import { PaintBrush, SquaresFour, Trophy, UserCircle } from "@phosphor-icons/react";
+import { PaintBrush, SquaresFour, Trophy, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { Avatar } from "./components/Avatar";
@@ -8,14 +8,16 @@ import { inkOn } from "./lib/format";
 import { useStore } from "./lib/state";
 import { AchievementsView } from "./views/AchievementsView";
 import { CustomizeView } from "./views/CustomizeView";
+import { FriendsView } from "./views/FriendsView";
 import { LibraryView } from "./views/LibraryView";
 import { ProfileView } from "./views/ProfileView";
 
-type View = "biblioteca" | "conquistas" | "perfil" | "personalizar";
+type View = "biblioteca" | "conquistas" | "amigos" | "perfil" | "personalizar";
 
 const NAV: Array<{ id: View; label: string; icon: typeof Trophy }> = [
   { id: "biblioteca", label: "Biblioteca", icon: SquaresFour },
   { id: "conquistas", label: "Conquistas", icon: Trophy },
+  { id: "amigos", label: "Amigos", icon: UsersThree },
   { id: "perfil", label: "Perfil", icon: UserCircle },
   { id: "personalizar", label: "Personalizar", icon: PaintBrush },
 ];
@@ -98,6 +100,7 @@ export function App() {
             >
               {view === "biblioteca" && <LibraryView />}
               {view === "conquistas" && <AchievementsView />}
+              {view === "amigos" && <FriendsView />}
               {view === "perfil" && <ProfileView />}
               {view === "personalizar" && <CustomizeView />}
             </motion.div>

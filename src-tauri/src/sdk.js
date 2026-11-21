@@ -9,7 +9,7 @@
     return internals.invoke(cmd, args);
   };
   window.GG77 = Object.freeze({
-    version: 1,
+    version: 2,
     inLauncher: true,
     unlock: function (id, info) {
       info = info || {};
@@ -23,6 +23,12 @@
     // pede ao launcher para fechar o jogo, baixar a versão nova e abrir de novo
     requestUpdate: function () {
       return invoke("request_game_update", {});
+    },
+    // login único: token curto da conta GG77 de quem está no launcher, para o servidor do jogo
+    // conferir ({ token, nickname }). Falha se o launcher estiver sem conta ou o jogo não for
+    // instalado pelo launcher.
+    getSession: function () {
+      return invoke("get_game_session", {});
     },
   });
   try {

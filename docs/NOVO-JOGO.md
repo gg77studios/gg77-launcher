@@ -62,15 +62,31 @@ window.GG77?.unlock("primeira-vitoria", {       // conquista (título/descriçã
   description: "Vença a primeira luta.",
 });
 window.GG77?.requestUpdate();                   // fecha o jogo, instala a versão nova e reabre
+await window.GG77?.getSession();                // login único: { token, nickname } (ver abaixo)
 window.addEventListener("gg77:ready", () => {}); // SDK pronto
 ```
 
 Detalhes das conquistas em [SDK.md](SDK.md). Integração de referência: `client/src/lib/launcher.js` do Idle
 (assina o estado do jogo e manda cada conquista uma vez).
 
-**Em breve (fase 3 do plano):** `GG77.getSession()` devolve um token da conta GG77 do jogador, para o
-jogo entrar sem tela de login própria. O servidor do jogo confere o token com a chave pública do hub e
-vincula à conta do jogo. Este guia ganha a seção "Login único" quando sair.
+### Login único (conta GG77)
+
+Quem está logado no launcher entra no jogo sem tela de login. Funciona só para jogos **instalados**
+pelo launcher (pacote assinado); página da web aberta como jogo não recebe token.
+
+1. **Cliente:** ao abrir sem sessão salva, chama `window.GG77.getSession()`. Recebe `{ token, nickname }`
+   (token de 5 min). Falhou (launcher sem conta, launcher antigo)? Mostra o login normal.
+2. **Servidor do jogo:** `POST /api/auth/launcher { hubToken }` confere o token com a chave pública do hub
+   (`https://gg77.forjahub.online/.well-known/gg77-hub.pem`, guardada no env `HUB_PUBLIC_KEY`):
+   algoritmo `EdDSA`, `iss = gg77-hub`, `aud = <id do jogo>`, validade. `sub` = id da conta GG77.
+   - Conta do jogo já ligada (`users.hub_user_id = sub`): devolve a sessão normal do jogo.
+   - Não ligada: responde `{ needsLink: true }` e o jogo mostra "Já jogo" (apelido e senha do jogo uma
+     vez, `/launcher/link`) ou "Sou novo" (só apelido, `/launcher/register`, conta sem senha).
+3. **Hub:** o id do jogo precisa estar no env `GAMES` do hub (lista separada por vírgula), senão o
+   launcher recebe 404 e o jogo cai no login normal.
+
+Modelo pronto no Idle: `server/utils/hubToken.js` (verificação, com testes), as rotas `/launcher*` em
+`server/routes/auth.js` e `client/src/components/LauncherSignIn.jsx`.
 
 ## 4. Empacotar e publicar
 
@@ -159,6 +175,7 @@ chamadas à API, uma página de sonda no lugar do `index.html` pode reportar res
 - [ ] Build com `base: './'`, API absoluta, sem recurso externo
 - [ ] `localStorage` com prefixo do jogo
 - [ ] Atualização via `GG77.requestUpdate()`, header `x-c` + tratamento de 426
+- [ ] Login único: `GG77.getSession()` + rota `/auth/launcher` no servidor + id do jogo no `GAMES` do hub
 - [ ] Servidor com CORS para `gg77game://localhost` e `http://gg77game.localhost`
 - [ ] Conquistas enviadas pelo SDK e cadastradas no catálogo com ícones
 - [ ] Capa, banner e ícone nos tamanhos acima

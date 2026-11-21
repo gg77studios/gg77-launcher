@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/remote-schema.json",
+  "identifier": "game-installed",
+  "description": "Só jogos instalados (pacote assinado, servido pelo gg77game) podem pedir o login pela conta GG77.",
+  "windows": [
+    "game-*"
+  ],
+  "remote": {
+    "urls": [
+      "gg77game://localhost/*",
+      "http://gg77game.localhost/*"
+    ]
+  },
+  "permissions": [
+    "allow-get-game-session"
+  ]
+}

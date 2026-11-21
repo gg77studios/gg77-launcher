@@ -8,6 +8,8 @@ fn main() {
             "close_game",
             "unlock_achievement",
             "request_game_update",
+            "set_hub_session",
+            "get_game_session",
             "check_game",
             "install_game",
             "uninstall_game",
