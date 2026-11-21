@@ -15,6 +15,8 @@ type SyncState = "off" | "syncing" | "ok" | "offline";
 
 type Ctx = {
   user: HubUser | null;
+  /** a conta salva neste PC já foi lida (antes disso, nem biblioteca nem tela de entrada) */
+  restored: boolean;
   sync: SyncState;
   login: (nickname: string, password: string, mode: "login" | "register") => Promise<void>;
   logout: () => Promise<void>;
@@ -42,6 +44,7 @@ const KEEPALIVE_MS = 10 * 60_000;
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const { state, ready, dispatch, running } = useStore();
   const [user, setUser] = useState<HubUser | null>(null);
+  const [restored, setRestored] = useState(false);
   const [sync, setSync] = useState<SyncState>("off");
   const [synced, setSynced] = useState(false);
   const snapRef = useRef<Snapshot | null>(null);
@@ -50,7 +53,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const busy = useRef(false);
 
   useEffect(() => {
-    void hub.restore().then(setUser);
+    void hub.restore().then((u) => {
+      setUser(u);
+      setRestored(true);
+    });
   }, []);
 
   /** Manda o que mudou desde o último retrato. */
@@ -121,7 +127,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         // perfil: o da nuvem vale; conta nova recebe o deste PC
         const me = await hub.me();
         if (me.profile && Object.keys(me.profile).length) dispatch({ type: "profile", patch: me.profile as Partial<Profile> });
-        else await hub.saveProfile(s.profile);
+        else {
+          // conta nova: o perfil deste PC sobe, com o apelido da conta se o perfil ainda não tinha
+          const profile = s.profile.nickname ? s.profile : { ...s.profile, nickname: user.nickname };
+          if (profile !== s.profile) dispatch({ type: "profile", patch: { nickname: user.nickname } });
+          await hub.saveProfile(profile);
+        }
         setSynced(true);
         setSync("ok");
       } catch {
@@ -183,5 +194,5 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  return <AccountCtx.Provider value={{ user, sync, login, logout }}>{children}</AccountCtx.Provider>;
+  return <AccountCtx.Provider value={{ user, restored, sync, login, logout }}>{children}</AccountCtx.Provider>;
 }

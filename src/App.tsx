@@ -3,6 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { Avatar } from "./components/Avatar";
 import { LauncherUpdate } from "./components/LauncherUpdate";
+import { SignInGate } from "./components/SignInGate";
+import { useAccount } from "./lib/account";
 import { Toasts } from "./components/Toasts";
 import { inkOn } from "./lib/format";
 import { useStore } from "./lib/state";
@@ -26,6 +28,7 @@ export function App() {
   const { state, ready, games, level, levelProgress, xp, bannerImage, titleText } = useStore();
   const [view, setView] = useState<View>("biblioteca");
   const reduce = useReducedMotion();
+  const account = useAccount();
   const { settings, profile } = state;
   const selected = games.find((g) => g.id === state.selectedGame) ?? games[0];
 
@@ -54,6 +57,12 @@ export function App() {
         <div className="wall-shade" />
       </div>
 
+      {!account.restored ? (
+        <div className="splash" aria-busy="true" />
+      ) : !account.user ? (
+        <SignInGate />
+      ) : (
+      <>
       <aside className="side glass">
         <div className="logo">
           <img className="logo-icon" src="/icon.png" alt="" width={30} height={30} />
@@ -107,6 +116,8 @@ export function App() {
           </AnimatePresence>
         )}
       </main>
+      </>
+      )}
 
       <Toasts />
     </div>

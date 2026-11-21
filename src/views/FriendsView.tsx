@@ -17,82 +17,10 @@ const asProfile = (p: Partial<Profile>, nickname: string): Profile => ({
 
 const message = (e: unknown) => (e instanceof HubError ? e.message : "Algo deu errado.");
 
+// a conta é a primeira etapa do launcher (SignInGate): aqui sempre há usuário
 export function FriendsView() {
   const { user } = useAccount();
-  return user ? <Friends /> : <SignIn />;
-}
-
-function SignIn() {
-  const { login } = useAccount();
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [nickname, setNickname] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      await login(nickname.trim(), password, mode);
-    } catch (err) {
-      setError(message(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="friends">
-      <section className="panel glass signin">
-        <h1>{mode === "login" ? "Entrar na conta GG77" : "Criar conta GG77"}</h1>
-        <p className="muted">
-          Com a conta, suas conquistas e seu tempo de jogo ficam salvos na nuvem, você vê os amigos jogando e entra nos jogos sem
-          outro login. O que já está neste PC sobe junto.
-        </p>
-        <form onSubmit={(e) => void submit(e)}>
-          <label className="field">
-            <span className="field-label">Apelido</span>
-            <input
-              className="input"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              autoComplete="username"
-              required
-              minLength={3}
-              maxLength={20}
-              pattern="[A-Za-z0-9_]+"
-              title="Letras, números ou _"
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Senha</span>
-            <input
-              className="input"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              required
-              minLength={6}
-            />
-          </label>
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button type="submit" className="btn btn--accent" disabled={busy}>
-            {busy ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
-          </button>
-        </form>
-        <button type="button" className="link-btn" onClick={() => setMode(mode === "login" ? "register" : "login")}>
-          {mode === "login" ? "Ainda não tem conta? Criar conta" : "Já tem conta? Entrar"}
-        </button>
-      </section>
-    </div>
-  );
+  return user ? <Friends /> : null;
 }
 
 function presenceText(f: FriendCard, gameTitle: (id: string) => string) {

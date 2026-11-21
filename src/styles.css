@@ -2331,18 +2331,97 @@ textarea {
   font-size: 24px;
 }
 
-.signin {
-  max-width: 460px;
+/* ---------- primeira tela: entrar ou criar conta ---------- */
+
+.app > .splash,
+.gate {
+  grid-column: 1 / -1;
 }
 
-.signin p {
-  margin: 0 0 18px;
-  line-height: 1.5;
+.gate {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: 24px 16px;
+  overflow-y: auto;
 }
 
-.signin .btn--accent {
+.gate-card {
+  width: min(420px, 100%);
+  padding: 28px 28px 24px;
+  border-radius: 28px;
+}
+
+.gate-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.gate-brand .logo-mark {
+  font-size: 26px;
+}
+
+.gate-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 20px;
+  border-radius: 999px;
+  background: var(--glass-soft);
+  border: 1px solid var(--line);
+}
+
+.gate-tabs button {
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gate-tabs button[aria-selected="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.gate-card h1 {
+  margin: 0 0 16px;
+  font-family: var(--display);
+  font-size: 22px;
+}
+
+.gate-submit {
   width: 100%;
   justify-content: center;
+  margin-top: 4px;
+}
+
+.gate-perks {
+  display: grid;
+  gap: 8px;
+  margin: 22px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.gate-perks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gate-perks svg {
+  color: var(--accent-text);
+  flex: none;
 }
 
 .link-btn {
