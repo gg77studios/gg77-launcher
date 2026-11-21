@@ -11,7 +11,7 @@ import { useStore } from "../lib/state";
 const MAX_SHOWCASE = 3;
 
 export function ProfileView() {
-  const { state, dispatch, games, describe, gameTitle, level, xp, banners, bannerImage } = useStore();
+  const { state, dispatch, games, describe, gameTitle, level, xp, banners } = useStore();
   const { profile } = state;
   const avatarInput = useId();
   const [picking, setPicking] = useState(false);
@@ -34,8 +34,8 @@ export function ProfileView() {
 
   return (
     <div className="profile">
-      <div className="profile-banner" style={{ backgroundImage: bannerImage ? `url(${bannerImage})` : undefined }}>
-        <button type="button" className="btn btn--glass profile-banner-btn" onClick={() => setChoosingBanner(true)}>
+      <div className="profile-banner">
+        <button type="button" className="btn glass glass--btn profile-banner-btn" onClick={() => setChoosingBanner(true)}>
           <ImageSquare size={16} aria-hidden /> Trocar banner
           <span className="banner-count">
             {banners.filter((b) => b.unlocked).length}/{banners.length}
@@ -44,7 +44,7 @@ export function ProfileView() {
       </div>
       {choosingBanner && <BannerPicker onClose={() => setChoosingBanner(false)} />}
 
-      <div className="profile-head">
+      <div className="profile-head glass">
         <div className="profile-avatar">
           <Avatar profile={profile} size={132} />
           <label className="avatar-edit" htmlFor={avatarInput} title="Enviar foto">
@@ -91,7 +91,7 @@ export function ProfileView() {
       </div>
 
       <div className="profile-grid">
-        <section className="panel">
+        <section className="panel glass">
           <h2>Sobre</h2>
           <textarea
             className="input bio"
@@ -121,7 +121,7 @@ export function ProfileView() {
           </dl>
         </section>
 
-        <section className="panel">
+        <section className="panel glass">
           <div className="panel-head">
             <h2>Vitrine</h2>
             <button type="button" className="btn btn--ghost" onClick={() => setPicking((p) => !p)}>

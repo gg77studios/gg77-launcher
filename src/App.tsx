@@ -20,11 +20,14 @@ const NAV: Array<{ id: View; label: string; icon: typeof Trophy }> = [
 ];
 
 export function App() {
-  const { state, ready, games, level, levelProgress, xp } = useStore();
+  const { state, ready, games, level, levelProgress, xp, bannerImage } = useStore();
   const [view, setView] = useState<View>("biblioteca");
   const reduce = useReducedMotion();
   const { settings, profile } = state;
   const selected = games.find((g) => g.id === state.selectedGame) ?? games[0];
+
+  // papel de parede: a arte do jogo selecionado; no perfil, o banner do perfil
+  const wallpaper = view === "perfil" ? (bannerImage ?? (settings.ambient ? selected?.banner : undefined)) : settings.ambient ? selected?.banner : undefined;
 
   const themeVars = {
     "--accent": settings.accent,
@@ -32,21 +35,33 @@ export function App() {
   } as React.CSSProperties;
 
   return (
-    <div className="app" data-theme={settings.theme} style={themeVars}>
-      {settings.ambient && selected?.banner && (
-        <div className="ambient" aria-hidden style={{ backgroundImage: `url(${selected.banner})` }} />
-      )}
+    <div className="app" data-theme={settings.theme} data-glass={settings.glass} style={themeVars}>
+      <div className="wall" aria-hidden>
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={wallpaper ?? "mesh"}
+            className={wallpaper ? "wall-img" : "wall-img wall-img--mesh"}
+            style={wallpaper ? { backgroundImage: `url(${wallpaper})` } : undefined}
+            initial={reduce ? false : { opacity: 0, scale: 1.04 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          />
+        </AnimatePresence>
+        <div className="wall-shade" />
+      </div>
 
-      <aside className="side">
+      <aside className="side glass">
         <div className="logo">
           <span className="logo-mark">GG77</span>
-          <span className="logo-sub">launcher</span>
         </div>
         <nav aria-label="Seções">
           {NAV.map(({ id, label, icon: Icon }) => (
             <button key={id} type="button" className="nav-item" aria-current={view === id ? "page" : undefined} onClick={() => setView(id)}>
+              {view === id && !reduce && <motion.span layoutId="nav-pill" className="nav-pill" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+              {view === id && reduce && <span className="nav-pill" />}
               <Icon size={20} weight={view === id ? "fill" : "regular"} aria-hidden />
-              {label}
+              <span>{label}</span>
             </button>
           ))}
         </nav>
@@ -72,10 +87,10 @@ export function App() {
             <motion.div
               key={view}
               className="view"
-              initial={reduce ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? undefined : { opacity: 0, y: -6 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              initial={reduce ? false : { opacity: 0, y: 14, filter: "blur(6px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={reduce ? undefined : { opacity: 0, y: -8, filter: "blur(4px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             >
               {view === "biblioteca" && <LibraryView />}
               {view === "conquistas" && <AchievementsView />}

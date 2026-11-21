@@ -19,9 +19,9 @@ export function CustomizeView() {
 
   return (
     <div className="customize">
-      <h1>Personalizar</h1>
+      <h1 className="page-title">Personalizar</h1>
 
-      <section className="panel">
+      <section className="panel glass">
         <h2>Tema</h2>
         <div className="themes" role="radiogroup" aria-label="Tema">
           {THEMES.map((t) => (
@@ -37,7 +37,28 @@ export function CustomizeView() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel glass">
+        <h2>Vidro</h2>
+        <div className="segmented glass glass--field" role="radiogroup" aria-label="Vidro">
+          {(
+            [
+              ["liquido", "Líquido"],
+              ["solido", "Sólido"],
+            ] as const
+          ).map(([value, label]) => (
+            <button key={value} type="button" role="radio" aria-checked={s.glass === value} onClick={() => set({ glass: value })}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="muted glass-hint">
+          {s.glass === "liquido"
+            ? "Painéis translúcidos que deixam a arte do jogo aparecer por trás."
+            : "Painéis opacos: mais contraste e mais leve para máquinas modestas."}
+        </p>
+      </section>
+
+      <section className="panel glass">
         <h2>Cor de destaque</h2>
         <div className="swatches" role="radiogroup" aria-label="Cor de destaque">
           {ACCENTS.map((a) => (
@@ -61,11 +82,11 @@ export function CustomizeView() {
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel glass">
         <h2>Ambiente</h2>
         <Toggle
           label="Fundo com a arte do jogo"
-          hint="Usa o banner do jogo selecionado, desfocado, atrás do launcher."
+          hint="A arte do jogo selecionado ocupa o fundo do launcher. Desligado, usa um degradê da cor de destaque."
           checked={s.ambient}
           onChange={(v) => set({ ambient: v })}
         />

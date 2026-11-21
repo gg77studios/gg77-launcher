@@ -102,7 +102,7 @@ export const AVATAR_PRESETS = [
 
 export const DEFAULT_STATE: Persisted = {
   profile: { nickname: "Jogador", bio: "", avatarPreset: 0, showcase: [] },
-  settings: { theme: "grafite", accent: ACCENTS[0].value, ambient: true, sound: true, notifications: true },
+  settings: { theme: "grafite", accent: ACCENTS[0].value, ambient: true, glass: "liquido", sound: true, notifications: true },
   customGames: [],
   overrides: {},
   stats: {},

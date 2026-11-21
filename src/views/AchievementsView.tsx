@@ -36,12 +36,12 @@ export function AchievementsView() {
     <div className="achievements">
       <header className="ach-head">
         <div>
-          <h1>Conquistas</h1>
+          <h1 className="page-title">Conquistas</h1>
           <p>
             {unlocked} de {rows.length} liberadas
           </p>
         </div>
-        <div className="ach-level">
+        <div className="ach-level glass">
           <span className="level-badge">{level}</span>
           <div>
             <strong>Nível {level}</strong>
@@ -55,7 +55,7 @@ export function AchievementsView() {
         </div>
       </header>
 
-      <div className="chips" role="tablist" aria-label="Filtrar por jogo">
+      <div className="chips glass" role="tablist" aria-label="Filtrar por jogo">
         {["todas", ...sources].map((id) => (
           <button key={id} type="button" role="tab" className="chip" aria-selected={filter === id} onClick={() => setFilter(id)}>
             {id === "todas" ? "Todas" : gameTitle(id)}
@@ -67,7 +67,7 @@ export function AchievementsView() {
         </label>
       </div>
 
-      <div className="ach-grid">
+      <div className="ach-grid glass">
         {visible.map((r) => (
           <AchievementCard key={`${r.gameId}:${r.def.id}`} def={r.def} unlock={r.unlock} game={gameTitle(r.gameId)} />
         ))}

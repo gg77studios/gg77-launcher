@@ -79,6 +79,8 @@ export type Settings = {
   theme: ThemeMode;
   accent: string;
   ambient: boolean;
+  /** vidro líquido (translúcido) ou sólido (sem transparência, mais leve e com mais contraste) */
+  glass: "liquido" | "solido";
   sound: boolean;
   notifications: boolean;
 };
