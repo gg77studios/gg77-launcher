@@ -51,8 +51,16 @@ export const CATALOG: Game[] = [
   },
 ];
 
-/** Banners do próprio launcher. */
-export const LAUNCHER_BANNERS: BannerDef[] = [{ id: "padrao", title: "Padrão" }];
+/** Banners do próprio launcher (arte gerada no Gemini), liberados pelas conquistas de uso. */
+export const LAUNCHER_BANNERS: BannerDef[] = [
+  { id: "padrao", title: "Padrão" },
+  { id: "portao", title: "Portão da guilda", image: "/games/launcher/banners/portao.jpg", unlock: "bem-vindo" },
+  { id: "colecao", title: "Estante da coleção", image: "/games/launcher/banners/colecao.jpg", unlock: "colecionador" },
+  { id: "taverna", title: "Taverna dos amigos", image: "/games/launcher/banners/taverna.jpg", unlock: "fiel" },
+  { id: "madrugada", title: "Madrugada", image: "/games/launcher/banners/madrugada.jpg", unlock: "maratona" },
+  { id: "estrada", title: "Estrada", image: "/games/launcher/banners/estrada.jpg", unlock: "veterano" },
+  { id: "trofeus", title: "Sala de troféus", image: "/games/launcher/banners/trofeus.jpg", unlock: "cacador" },
+];
 
 export const bannerRef = (gameId: string, bannerId: string) => `ref:${gameId}:${bannerId}`;
 
