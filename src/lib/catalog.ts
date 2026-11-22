@@ -5,6 +5,8 @@ const withIcons = (dir: string, ext: string, list: AchievementDef[]): Achievemen
   list.map((a) => ({ ...a, icon: `${dir}${a.id}${ext}` }));
 
 const IDLE_ICONS = "/games/idle-legends/achievements/";
+const TRIBOS_ICONS = "/games/tribos/achievements/";
+const TRIBOS_BANNERS = "/games/tribos/banners/";
 
 /** Jogos que já vêm no launcher. Para adicionar um novo jogo do grupo, inclua aqui. */
 export const CATALOG: Game[] = [
@@ -83,18 +85,46 @@ export const CATALOG: Game[] = [
     tagline: "Estratégia em hexágonos sem turnos, para até 5 clãs.",
     // ícones: a arte pintada do próprio jogo (Gemini)
     pixelArt: false,
-    // o jogo manda estas conquistas pelo SDK (client/src/profile.ts no repositório do jogo);
-    // são as mesmas que liberam os clãs extras dentro do jogo
-    achievements: withIcons("/games/tribos/achievements/", ".png", [
+    // O jogo manda estas conquistas pelo SDK (client/src/profile.ts no repositório do jogo).
+    // As 7 primeiras somam partidas (shared/src/clans.ts; 3 delas liberam clãs no jogo);
+    // as outras são feitos de uma partida só (shared/src/feats.ts).
+    achievements: withIcons(TRIBOS_ICONS, ".png", [
       { id: "primeira_vitoria", title: "Primeira vitória", description: "Vença uma partida.", tier: "comum" },
       { id: "saqueador_de_ruinas", title: "Saqueador de ruínas", description: "Vasculhe 5 ruínas.", tier: "comum" },
       { id: "cacador", title: "Caçador", description: "Derrote 15 tropas, somando as partidas.", tier: "rara" },
       { id: "limpa_trilhas", title: "Limpa-trilhas", description: "Destrua 3 acampamentos de saqueadores.", tier: "rara" },
       { id: "conquistador", title: "Conquistador", description: "Tome 20 aldeias ou cidades.", tier: "épica" },
+      { id: "caudilho", title: "Caudilho", description: "Vença 10 partidas.", tier: "épica" },
+      { id: "carrasco", title: "Carrasco", description: "Derrote 100 tropas, somando as partidas.", tier: "épica" },
+      { id: "aprendiz", title: "Aprendiz", description: "Conclua a partida de treino.", tier: "comum" },
+      { id: "metropole", title: "Metrópole", description: "Leve uma cidade ao nível IV.", tier: "comum" },
+      { id: "diplomata", title: "Diplomata", description: "Firme uma trégua com outro clã.", tier: "comum" },
+      { id: "sabio", title: "Sábio", description: "Aprenda todos os saberes numa única partida.", tier: "rara" },
+      { id: "desafio_duro", title: "Osso duro", description: "Vença uma partida contra um bot difícil.", tier: "rara" },
+      { id: "intocavel", title: "Intocável", description: "Vença sem perder nenhuma cidade.", tier: "rara" },
+      { id: "ilheu", title: "Senhor das ilhas", description: "Vença uma partida no mapa de ilhas.", tier: "rara" },
+      { id: "mestre_dos_clas", title: "Mestre dos clãs", description: "Vença com 5 clãs diferentes.", tier: "épica" },
+      {
+        id: "senhor_da_guerra",
+        title: "Senhor da guerra",
+        description: "Vença uma partida contra 4 bots difíceis.",
+        tier: "épica",
+        hidden: true,
+      },
     ]),
+    // banners de perfil pintados no Gemini, cada um liberado por uma conquista ligada a ele
     banners: [
-      { id: "vale", title: "Vale do rio", image: "/games/tribos/banners/vale.jpg", unlock: "primeira_vitoria" },
-      { id: "vitoria", title: "Estandarte erguido", image: "/games/tribos/banners/vitoria.jpg", unlock: "conquistador" },
+      { id: "vale", title: "Vale do rio", image: `${TRIBOS_BANNERS}vale.jpg`, unlock: "primeira_vitoria" },
+      { id: "ruinas", title: "Ruínas na névoa", image: `${TRIBOS_BANNERS}ruinas.jpg`, unlock: "saqueador_de_ruinas" },
+      { id: "corvos", title: "Floresta dos corvos", image: `${TRIBOS_BANNERS}corvos.jpg`, unlock: "cacador" },
+      { id: "geada", title: "Fiorde gelado", image: `${TRIBOS_BANNERS}geada.jpg`, unlock: "limpa_trilhas" },
+      { id: "vitoria", title: "Estandarte erguido", image: `${TRIBOS_BANNERS}vitoria.jpg`, unlock: "conquistador" },
+      { id: "cidadela", title: "Cidadela", image: `${TRIBOS_BANNERS}cidadela.jpg`, unlock: "metropole" },
+      { id: "conselho", title: "Tenda do conselho", image: `${TRIBOS_BANNERS}conselho.jpg`, unlock: "diplomata" },
+      { id: "saberes", title: "Casa dos saberes", image: `${TRIBOS_BANNERS}saberes.jpg`, unlock: "sabio" },
+      { id: "arquipelago", title: "Arquipélago", image: `${TRIBOS_BANNERS}arquipelago.jpg`, unlock: "ilheu" },
+      { id: "forja", title: "Forja do clã", image: `${TRIBOS_BANNERS}forja.jpg`, unlock: "caudilho" },
+      { id: "trono", title: "Salão do trono", image: `${TRIBOS_BANNERS}trono.jpg`, unlock: "senhor_da_guerra" },
     ],
   },
 ];
