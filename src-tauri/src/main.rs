@@ -2,13 +2,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    // Linux: o renderizador DMABUF do WebKitGTK faz a tela piscar (e às vezes deixar a janela do
-    // jogo em branco) no Wayland, principalmente no AppImage, que leva bibliotecas gráficas de outra
-    // versão do Ubuntu. Desligado aqui, antes de qualquer janela; quem quiser pode sobrescrever
-    // definindo a variável ao abrir o launcher.
+    // Linux com Wayland: o WebKitGTK pisca (e às vezes deixa a janela do jogo em branco) com o
+    // renderizador DMABUF, principalmente no AppImage, que leva bibliotecas gráficas de outra
+    // versão do Ubuntu. Desligar o DMABUF tirava a piscada, mas a página passava a ser desenhada
+    // pela CPU e o jogo ficava com atraso na digitação. Pelo XWayland as duas coisas somem e a
+    // placa de vídeo continua desenhando (testado em Ubuntu 26.04, GNOME, Intel UHD).
+    // Quem quiser outro modo define GDK_BACKEND ao abrir o launcher.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    if std::env::var_os("GDK_BACKEND").is_none() && std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        std::env::set_var("GDK_BACKEND", "x11");
     }
     gg77_launcher_lib::run()
 }
