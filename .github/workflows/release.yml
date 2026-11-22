@@ -32,6 +32,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          # plugins do GStreamer que o AppImage leva junto (bundleMediaFramework): saída de áudio e mp3
+          sudo apt-get install -y gstreamer1.0-plugins-base gstreamer1.0-plugins-good
 
       - uses: actions/setup-node@v4
         with:
