@@ -70,6 +70,33 @@ export const CATALOG: Game[] = [
       { id: "salao", title: "Salão da fama", image: "/games/idle-legends/banners/salao.jpg", unlock: "hall-da-fama" },
     ],
   },
+  {
+    id: "tribos",
+    title: "Tribos",
+    // só roda instalado pelo launcher; o servidor exige a conta GG77 (token do hub)
+    url: "",
+    package: { manifest: "https://github.com/gg77studios/gg77-builds/releases/download/catalog/tribos.json" },
+    cover: "/games/tribos/cover.jpg",
+    banner: "/games/tribos/banner.jpg",
+    icon: "/games/tribos/icon.png",
+    tint: "#2d2721",
+    tagline: "Estratégia em hexágonos sem turnos, para até 5 clãs.",
+    // ícones: a arte pintada do próprio jogo (Gemini)
+    pixelArt: false,
+    // o jogo manda estas conquistas pelo SDK (client/src/profile.ts no repositório do jogo);
+    // são as mesmas que liberam os clãs extras dentro do jogo
+    achievements: withIcons("/games/tribos/achievements/", ".png", [
+      { id: "primeira_vitoria", title: "Primeira vitória", description: "Vença uma partida.", tier: "comum" },
+      { id: "saqueador_de_ruinas", title: "Saqueador de ruínas", description: "Vasculhe 5 ruínas.", tier: "comum" },
+      { id: "cacador", title: "Caçador", description: "Derrote 15 tropas, somando as partidas.", tier: "rara" },
+      { id: "limpa_trilhas", title: "Limpa-trilhas", description: "Destrua 3 acampamentos de saqueadores.", tier: "rara" },
+      { id: "conquistador", title: "Conquistador", description: "Tome 20 aldeias ou cidades.", tier: "épica" },
+    ]),
+    banners: [
+      { id: "vale", title: "Vale do rio", image: "/games/tribos/banners/vale.jpg", unlock: "primeira_vitoria" },
+      { id: "vitoria", title: "Estandarte erguido", image: "/games/tribos/banners/vitoria.jpg", unlock: "conquistador" },
+    ],
+  },
 ];
 
 /** Banners do próprio launcher (arte gerada no Gemini), liberados pelas conquistas de uso. */
