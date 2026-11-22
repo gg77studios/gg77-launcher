@@ -242,9 +242,19 @@
       }
 
       .others {
+        max-width: 56ch;
         margin: 18px 0 0;
         font-size: 14px;
+        line-height: 1.7;
         color: var(--ink-3);
+      }
+
+      .others b {
+        color: var(--ink-2);
+      }
+
+      .others code {
+        white-space: nowrap;
       }
 
       .others a {
@@ -741,11 +751,18 @@
               el("dl-label").textContent = "Escolha a versão";
               el("dl-meta").textContent = "Windows e Linux · v" + version;
             }
-            if (os !== "mobile" && os !== "mac") {
+            if (os === "linux") {
+              // o navegador baixa o AppImage sem permissão de execução: avisar logo abaixo do botão
+              var pkgs = [link(a.deb, "Ubuntu/Debian (.deb)"), link(a.rpm, "Fedora (.rpm)")].filter(Boolean);
+              el("others").innerHTML =
+                "Depois de baixar, dê permissão de execução: botão direito no arquivo › Propriedades › " +
+                "<b>Permitir executar como programa</b>, ou <code>chmod +x GG77.Launcher_*.AppImage</code>." +
+                (pkgs.length ? "<br />Prefere instalar com duplo clique? " + pkgs.join(" · ") : "");
+            } else if (os !== "mobile" && os !== "mac") {
               var others = [
                 os !== "windows" && link(a.exe, "Windows (.exe)"),
                 link(a.msi, "Windows (.msi)"),
-                os !== "linux" && link(a.appimage, "Linux (.AppImage)"),
+                link(a.appimage, "Linux (.AppImage)"),
                 link(a.deb, ".deb"),
                 link(a.rpm, ".rpm"),
               ].filter(Boolean);
