@@ -1,17 +1,20 @@
 import { Check, CloudCheck, CloudSlash, GameController, SignOut, UserPlus, X } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar } from "../components/Avatar";
+import { ProfileCard } from "../components/ProfileCard";
+import { TIER_XP, XP_PER_LEVEL } from "../lib/catalog";
 import { useAccount } from "../lib/account";
 import { fmtDuration, fmtRelative } from "../lib/format";
 import { type FriendCard, hub, HubError, type UserPage } from "../lib/hub";
 import { useStore } from "../lib/state";
 import type { Profile } from "../lib/types";
 
+// perfil de um amigo (pode vir de um launcher antigo, com foto em data URL: fica de fora)
 const asProfile = (p: Partial<Profile>, nickname: string): Profile => ({
   bio: "",
-  avatarPreset: 0,
   showcase: [],
   ...p,
+  avatar: undefined,
   nickname: p.nickname || nickname,
 });
 
@@ -204,6 +207,10 @@ function FriendProfile({ page, onClose, onRemove }: { page: UserPage; onClose: (
   for (const a of page.achievements) byGame.set(a.gameId, (byGame.get(a.gameId) ?? 0) + 1);
   const recent = [...page.achievements].sort((a, b) => b.at - a.at).slice(0, 6);
   const profile = asProfile(page.profile, page.nickname);
+  const friendXp = page.achievements.reduce((a, u) => a + TIER_XP[describe(u).tier], 0);
+  const friendLevel = Math.floor(friendXp / XP_PER_LEVEL) + 1;
+  const titleKey = profile.title?.split(":");
+  const friendTitle = titleKey && titleKey.length >= 2 ? describe({ gameId: titleKey[0], id: titleKey.slice(1).join(":"), at: 0 }).title : undefined;
 
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -213,17 +220,22 @@ function FriendProfile({ page, onClose, onRemove }: { page: UserPage; onClose: (
   return (
     <dialog ref={ref} className="dialog friend-profile" aria-labelledby="friend-title" onClose={onClose} onCancel={onClose}>
       <div>
-        <header className="friend-profile-head">
-          <Avatar profile={profile} size={72} />
-          <div>
-            <h2 id="friend-title">{page.nickname}</h2>
-            {profile.bio && <p className="muted">{profile.bio}</p>}
-            <p className="muted">{page.presence.status === "playing" && page.presence.gameId ? `Jogando ${gameTitle(page.presence.gameId)}` : page.presence.status === "online" ? "Online" : "Offline"}</p>
-          </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Fechar" title="Fechar">
+        <div className="friend-profile-head">
+          <ProfileCard profile={profile} level={friendLevel} titleText={friendTitle}>
+            <div className="pcard-side">
+              <span className="muted">
+                {page.presence.status === "playing" && page.presence.gameId
+                  ? `Jogando ${gameTitle(page.presence.gameId)}`
+                  : page.presence.status === "online"
+                    ? "Online"
+                    : "Offline"}
+              </span>
+            </div>
+          </ProfileCard>
+          <button type="button" className="icon-btn friend-close" onClick={onClose} aria-label="Fechar" title="Fechar">
             <X size={18} aria-hidden />
           </button>
-        </header>
+        </div>
 
         <dl className="stat-pills">
           {page.stats.map((s) => (

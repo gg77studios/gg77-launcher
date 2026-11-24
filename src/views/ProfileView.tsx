@@ -1,21 +1,42 @@
-import { Camera, Check, ImageSquare, LockSimple, Plus } from "@phosphor-icons/react";
-import { useId, useMemo, useState } from "react";
+import { Check, PencilSimple, Plus, Storefront } from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
 import { AchievementCard, AchievementIcon } from "../components/AchievementCard";
-import { Avatar } from "../components/Avatar";
-import { BannerPicker } from "../components/BannerPicker";
-import { AVATAR_PRESETS } from "../lib/catalog";
+import { ItemPreview } from "../components/ItemPreview";
+import { Nick, ProfileCard } from "../components/ProfileCard";
 import { fmtHours } from "../lib/format";
-import { imageToDataUrl } from "../lib/platform";
+import { type ShopTab, useNav } from "../lib/nav";
 import { useStore } from "../lib/state";
+import type { ItemKind, ShopItem } from "../lib/types";
+import { CoinAmount, useEquipped } from "./ShopView";
+import { LauncherSettings } from "./LauncherSettings";
 
 const MAX_SHOWCASE = 3;
 
 export function ProfileView() {
-  const { state, dispatch, games, describe, gameTitle, level, xp, banners, titleText } = useStore();
+  const [tab, setTab] = useState<"perfil" | "launcher">("perfil");
+  return (
+    <div className="profile">
+      <div className="profile-top">
+        <h1 className="page-title">Perfil</h1>
+        <div className="segmented glass glass--field" role="tablist" aria-label="Seções do perfil">
+          <button type="button" role="tab" aria-selected={tab === "perfil"} aria-checked={tab === "perfil"} onClick={() => setTab("perfil")}>
+            Meu perfil
+          </button>
+          <button type="button" role="tab" aria-selected={tab === "launcher"} aria-checked={tab === "launcher"} onClick={() => setTab("launcher")}>
+            Meu launcher
+          </button>
+        </div>
+      </div>
+      {tab === "perfil" ? <MyProfile /> : <LauncherSettings />}
+    </div>
+  );
+}
+
+function MyProfile() {
+  const { state, dispatch, games, describe, gameTitle, level, xp, titleText, wallet } = useStore();
+  const { go } = useNav();
   const { profile } = state;
-  const avatarInput = useId();
   const [picking, setPicking] = useState(false);
-  const [choosingBanner, setChoosingBanner] = useState(false);
 
   const totalSeconds = Object.values(state.stats).reduce((a, s) => a + s.seconds, 0);
   const favorite = useMemo(() => {
@@ -33,63 +54,34 @@ export function ProfileView() {
   };
 
   return (
-    <div className="profile">
-      <div className="profile-banner">
-        <button type="button" className="btn glass glass--btn profile-banner-btn" onClick={() => setChoosingBanner(true)}>
-          <ImageSquare size={16} aria-hidden /> Trocar banner
-          <span className="banner-count">
-            {banners.filter((b) => b.unlocked).length}/{banners.length}
-          </span>
-        </button>
-      </div>
-      {choosingBanner && <BannerPicker onClose={() => setChoosingBanner(false)} />}
+    <>
+      <ProfileCard
+        profile={profile}
+        level={level}
+        titleText={titleText}
+        size="lg"
+        live
+        nickSlot={<NickEditor />}
+      >
+        <div className="pcard-side">
+          <span className="muted">{xp} XP</span>
+          <button type="button" className="btn glass glass--btn" onClick={() => go("loja")}>
+            <Storefront size={16} aria-hidden /> Loja <CoinAmount n={wallet.balance} />
+          </button>
+        </div>
+      </ProfileCard>
 
-      <div className="profile-head glass">
-        <div className="profile-avatar">
-          <Avatar profile={profile} size={132} />
-          <label className="avatar-edit" htmlFor={avatarInput} title="Enviar foto">
-            <Camera size={18} weight="fill" aria-hidden />
-            <span className="sr-only">Enviar foto de avatar</span>
-          </label>
-          <input
-            id={avatarInput}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (f) setPatch({ avatar: await imageToDataUrl(f, 320, 320) });
-              e.target.value = "";
-            }}
-          />
+      <section className="panel glass builder" aria-labelledby="builder-title">
+        <h2 id="builder-title">Montar o perfil</h2>
+        <div className="builder-grid">
+          <Slot title="Avatar" kind="avatar" tab="avatar" />
+          <Slot title="Moldura" kind="frame" tab="frame" none="Sem moldura" />
+          <Slot title="Efeito do avatar" kind="avatarFx" tab="fx" none="Nenhum" />
+          <Slot title="Estilo do nome" kind="nameStyle" tab="nameStyle" none="Normal" />
+          <Slot title="Banner" kind="banner" tab="banner" none="Degradê" wide />
+          <Slot title="Efeito do banner" kind="bannerFx" tab="fx" none="Nenhum" wide />
         </div>
-        <div className="profile-id">
-          <label className="sr-only" htmlFor="nick">
-            Apelido
-          </label>
-          <input id="nick" className="nick-input" value={profile.nickname} maxLength={24} onChange={(e) => setPatch({ nickname: e.target.value })} />
-          {titleText && <div className="profile-title">{titleText}</div>}
-          <div className="profile-level">
-            <span className="level-badge level-badge--sm">{level}</span>
-            Nível {level}, {xp} XP
-          </div>
-        </div>
-        <div className="presets" role="group" aria-label="Avatares prontos">
-          {AVATAR_PRESETS.map((p, i) => (
-            <button
-              key={p.bg}
-              type="button"
-              className="preset"
-              style={{ background: p.bg }}
-              aria-pressed={!profile.avatar && profile.avatarPreset === i}
-              aria-label={`Avatar de cor ${i + 1}`}
-              onClick={() => setPatch({ avatar: undefined, avatarPreset: i })}
-            >
-              {!profile.avatar && profile.avatarPreset === i && <Check size={14} weight="bold" color={p.fg} />}
-            </button>
-          ))}
-        </div>
-      </div>
+      </section>
 
       <div className="profile-grid">
         <section className="panel glass">
@@ -171,79 +163,125 @@ export function ProfileView() {
         </section>
       </div>
 
-      <Appearance />
+      <section className="panel glass appearance" aria-labelledby="title-title">
+        <h2 id="title-title">Título</h2>
+        <p className="muted appearance-hint">Qualquer conquista liberada pode virar o título que aparece sob o seu apelido.</p>
+        <div className="titles" role="radiogroup" aria-label="Título">
+          <button type="button" role="radio" className="title-chip" aria-checked={!profile.title} onClick={() => setPatch({ title: undefined })}>
+            Sem título
+          </button>
+          {unlocked.map(([key, u]) => {
+            const d = describe(u);
+            return (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                className="title-chip"
+                data-tier={d.tier}
+                aria-checked={profile.title === key}
+                onClick={() => setPatch({ title: key })}
+                title={gameTitle(u.gameId)}
+              >
+                <AchievementIcon def={{ id: u.id, ...d }} unlocked pixel={d.pixel} size={22} />
+                {d.title}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    </>
+  );
+}
+
+/** Apelido com o estilo da loja; clicar troca por um campo de texto. */
+function NickEditor() {
+  const { state, dispatch } = useStore();
+  const [editing, setEditing] = useState(false);
+  const nick = state.profile.nickname;
+  if (editing) {
+    return (
+      <>
+        <label className="sr-only" htmlFor="nick">
+          Apelido
+        </label>
+        <input
+          id="nick"
+          className="nick-input"
+          autoFocus
+          value={nick}
+          maxLength={24}
+          onChange={(e) => dispatch({ type: "profile", patch: { nickname: e.target.value } })}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => e.key === "Enter" && setEditing(false)}
+        />
+      </>
+    );
+  }
+  return (
+    <button type="button" className="nick-edit" onClick={() => setEditing(true)} title="Trocar apelido">
+      <Nick style={state.profile.nameStyle} live as="h1">
+        {nick || "Jogador"}
+      </Nick>
+      <PencilSimple size={16} aria-hidden />
+    </button>
+  );
+}
+
+/** Uma peça do perfil: só os itens que o usuário tem, mais o atalho para a loja. */
+function Slot({ title, kind, tab, none, wide }: { title: string; kind: ItemKind; tab: ShopTab; none?: string; wide?: boolean }) {
+  const { shop, owns, equip } = useStore();
+  const equipped = useEquipped();
+  const { go } = useNav();
+  const mine = shop.filter((i) => i.kind === kind && owns(i.id));
+  const total = shop.filter((i) => i.kind === kind).length;
+  const anyOn = mine.some(equipped);
+
+  return (
+    <div className="slot" data-wide={wide || undefined} data-kind={kind}>
+      <h3>
+        {title}
+        <span className="muted">
+          {mine.length}/{total}
+        </span>
+      </h3>
+      <div className="slot-row" role="radiogroup" aria-label={title}>
+        {none && (
+          <button type="button" role="radio" className="slot-tile slot-tile--none" aria-checked={!anyOn} onClick={() => equip(kind, undefined)}>
+            <span className="slot-art">{none}</span>
+          </button>
+        )}
+        {mine.map((it) => (
+          <SlotTile key={it.id} it={it} on={equipped(it)} onPick={() => equip(kind, it.id)} />
+        ))}
+        <button type="button" className="slot-tile slot-tile--shop" onClick={() => go("loja", { tab })} title="Ver mais na loja">
+          <span className="slot-art">
+            <Storefront size={20} aria-hidden />
+          </span>
+          <span className="slot-name">Mais na loja</span>
+        </button>
+      </div>
     </div>
   );
 }
 
-/** Peças para montar o perfil: moldura do avatar e título sob o apelido. */
-function Appearance() {
-  const { state, dispatch, frames, describe, gameTitle } = useStore();
-  const { profile } = state;
-  const unlocked = Object.entries(state.unlocks).sort((a, b) => b[1].at - a[1].at);
-  const setPatch = (patch: Partial<typeof profile>) => dispatch({ type: "profile", patch });
-
+function SlotTile({ it, on, onPick }: { it: ShopItem; on: boolean; onPick: () => void }) {
+  const [hover, setHover] = useState(false);
   return (
-    <section className="panel glass appearance" aria-labelledby="app-title">
-      <h2 id="app-title">Aparência do perfil</h2>
-      <div className="appearance-grid">
-        <div>
-          <h3>Moldura do avatar</h3>
-          <div className="frames" role="radiogroup" aria-label="Moldura do avatar">
-            <button type="button" role="radio" className="frame-tile" aria-checked={!profile.frame} onClick={() => setPatch({ frame: undefined })}>
-              <Avatar profile={profile} size={56} frame={null} />
-              <strong>Sem moldura</strong>
-            </button>
-            {frames.map(({ def, unlocked: free, requirement }) => (
-              <button
-                key={def.id}
-                type="button"
-                role="radio"
-                className="frame-tile"
-                aria-checked={profile.frame === def.id}
-                disabled={!free}
-                onClick={() => setPatch({ frame: def.id })}
-                title={free ? def.name : `Libere com: ${requirement}`}
-              >
-                <Avatar profile={profile} size={56} frame={def.id} />
-                <strong>{def.name}</strong>
-                {!free && (
-                  <span>
-                    <LockSimple size={11} weight="bold" aria-hidden /> {requirement}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h3>Título</h3>
-          <p className="muted appearance-hint">Qualquer conquista liberada pode virar o título que aparece sob o seu apelido.</p>
-          <div className="titles" role="radiogroup" aria-label="Título">
-            <button type="button" role="radio" className="title-chip" aria-checked={!profile.title} onClick={() => setPatch({ title: undefined })}>
-              Sem título
-            </button>
-            {unlocked.map(([key, u]) => {
-              const d = describe(u);
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="radio"
-                  className="title-chip"
-                  data-tier={d.tier}
-                  aria-checked={profile.title === key}
-                  onClick={() => setPatch({ title: key })}
-                  title={gameTitle(u.gameId)}
-                >
-                  <AchievementIcon def={{ id: u.id, ...d }} unlocked pixel={d.pixel} size={22} />
-                  {d.title}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
+    <button
+      type="button"
+      role="radio"
+      className="slot-tile"
+      aria-checked={on}
+      onClick={onPick}
+      title={it.name}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <span className="slot-art">
+        <ItemPreview it={it} live={hover} size={52} />
+      </span>
+      <span className="slot-name">{it.name}</span>
+    </button>
   );
 }

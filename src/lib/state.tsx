@@ -1,16 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import {
-  bannerRef,
-  CATALOG,
-  DEFAULT_STATE,
-  FRAMES,
-  LAUNCHER_ACHIEVEMENTS,
-  LAUNCHER_BANNERS,
-  LAUNCHER_ID,
-  TIER_XP,
-  unlockKey,
-  XP_PER_LEVEL,
-} from "./catalog";
+import { CATALOG, DEFAULT_STATE, LAUNCHER_ACHIEVEMENTS, LAUNCHER_ID, TIER_XP, unlockKey, XP_PER_LEVEL } from "./catalog";
+import { mergeCloudProfile, migrateProfile, migrateSettings } from "./migrate";
+import { buildShop, computeWallet, STARTER_AVATAR, type Wallet } from "./shop";
 import {
   checkGame,
   closeGame,
@@ -28,11 +19,14 @@ import {
   verifyGame,
 } from "./platform";
 import { chime } from "./sound";
-import type { AchievementDef, BannerDef, FrameDef, Game, GameStats, Persisted, Profile, Settings, Tier, Unlock } from "./types";
+import type { AchievementDef, Game, GameStats, ItemKind, Persisted, Profile, Settings, ShopItem, Tier, Unlock } from "./types";
 
 type Action =
   | { type: "hydrate"; state: Persisted }
   | { type: "profile"; patch: Partial<Profile> }
+  /** perfil da nuvem: os campos de lá valem, o inventário soma com o deste PC */
+  | { type: "cloudProfile"; profile: Partial<Profile> }
+  | { type: "buy"; id: string }
   | { type: "settings"; patch: Partial<Settings> }
   | { type: "select"; id: string }
   | { type: "addGame"; game: Game }
@@ -54,6 +48,13 @@ function reducer(s: Persisted, a: Action): Persisted {
       return a.state;
     case "profile":
       return { ...s, profile: { ...s.profile, ...a.patch } };
+    case "cloudProfile":
+      return { ...s, profile: mergeCloudProfile(s.profile, a.profile, s.unlocks) };
+    case "buy": {
+      const inv = s.profile.inventory ?? [];
+      if (inv.includes(a.id)) return s;
+      return { ...s, profile: { ...s.profile, inventory: [...inv, a.id] } };
+    }
     case "settings":
       return { ...s, settings: { ...s.settings, ...a.patch } };
     case "select":
@@ -131,7 +132,8 @@ export type Toast = {
   game: string;
   xp: number;
   tier: Tier;
-  reward?: string;
+  /** fichas ganhas com a conquista */
+  coins: number;
   icon?: string;
   pixel?: boolean;
 };
@@ -144,18 +146,19 @@ export type PackageState = Partial<PackageStatus> & {
   message?: string;
 };
 
-export type FrameOption = { def: FrameDef; unlocked: boolean; requirement?: string };
-
 export type Described = { title: string; description: string; tier: Tier; hidden?: boolean; icon?: string; pixel?: boolean };
 
-export type BannerOption = {
-  ref: string;
-  gameId: string;
-  gameTitle: string;
-  def: BannerDef;
-  unlocked: boolean;
-  /** título da conquista que libera (quando bloqueado) */
-  requirement?: string;
+/** Por que um item não pode ser comprado agora (ou vazio se pode). */
+export type BuyBlock = { reason: "owned" | "level" | "coins"; text: string } | null;
+
+/** Campo do perfil ou do ajuste que cada tipo de item ocupa ao ser usado. */
+const SLOT: Partial<Record<ItemKind, keyof Profile>> = {
+  avatar: "avatarId",
+  banner: "banner",
+  frame: "frame",
+  avatarFx: "avatarFx",
+  bannerFx: "bannerFx",
+  nameStyle: "nameStyle",
 };
 
 type Ctx = {
@@ -173,16 +176,23 @@ type Ctx = {
   verifyPackage: (game: Game) => Promise<void>;
   defsFor: (gameId: string) => AchievementDef[];
   describe: (u: Unlock) => Described;
-  frames: FrameOption[];
   /** texto do título escolhido no perfil */
   titleText?: string;
   xp: number;
   level: number;
   levelProgress: number;
   gameTitle: (gameId: string) => string;
-  banners: BannerOption[];
   /** imagem do banner atual do perfil; vazio = degradê padrão */
   bannerImage?: string;
+  /** a loja inteira (itens fixos + avatares e banners dos jogos) */
+  shop: ShopItem[];
+  item: (id: string | undefined) => ShopItem | undefined;
+  owns: (id: string) => boolean;
+  wallet: Wallet;
+  canBuy: (item: ShopItem) => BuyBlock;
+  buy: (item: ShopItem) => boolean;
+  /** usa um item já possuído (ou tira, com id vazio); `bought` pula a checagem logo após comprar */
+  equip: (kind: ItemKind, id: string | undefined, bought?: boolean) => void;
 };
 
 const StoreCtx = createContext<Ctx | null>(null);
@@ -210,14 +220,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadKey<Persisted>("state").then((saved) => {
       if (saved) {
+        const unlocks = saved.unlocks ?? {};
+        const settings = migrateSettings(saved.settings);
+        // até a 0.5 o fundo sem arte do jogo era o degradê; agora é o fundo escolhido
         dispatch({
           type: "hydrate",
-          state: {
-            ...DEFAULT_STATE,
-            ...saved,
-            profile: { ...DEFAULT_STATE.profile, ...saved.profile },
-            settings: { ...DEFAULT_STATE.settings, ...saved.settings },
-          },
+          state: { ...DEFAULT_STATE, ...saved, unlocks, profile: migrateProfile(saved.profile ?? {}, unlocks), settings },
         });
       }
       setReady(true);
@@ -296,9 +304,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       seenRef.current.add(key);
       dispatch({ type: "unlock", unlock: u });
       const d = describe(u);
-      const prize = (u.gameId === LAUNCHER_ID ? LAUNCHER_BANNERS : (games.find((g) => g.id === u.gameId)?.banners ?? [])).find(
-        (b) => b.unlock === u.id,
-      );
       const toast: Toast = {
         key,
         title: d.title,
@@ -306,16 +311,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         game: gameTitle(u.gameId),
         xp: TIER_XP[d.tier],
         tier: d.tier,
-        reward: prize ? `Banner liberado: ${prize.title}` : undefined,
+        coins: TIER_XP[d.tier],
         icon: d.icon,
         pixel: d.pixel,
       };
       setToasts((ts) => (ts.some((t) => t.key === key) ? ts : [...ts, toast]));
       const { sound, notifications } = stateRef.current.settings;
       if (sound) chime(d.tier);
-      if (notifications && !document.hasFocus()) void notify(`Conquista: ${d.title}`, `${toast.game}, +${toast.xp} XP`);
+      if (notifications && !document.hasFocus()) void notify(`Conquista: ${d.title}`, `${toast.game}, +${toast.xp} XP e fichas`);
     },
-    [describe, gameTitle, games],
+    [describe, gameTitle],
   );
 
   const dismissToast = useCallback((key: string) => setToasts((ts) => ts.filter((t) => t.key !== key)), []);
@@ -465,7 +470,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const longest = Math.max(0, ...Object.values(s.stats).map((st) => st.longestSession));
     const anyPlayed = Object.values(s.stats).some((st) => st.lastPlayed);
     const customized =
-      !!s.profile.avatar || !!s.profile.banner || s.profile.avatarPreset !== 0 || s.settings.accent !== DEFAULT_STATE.settings.accent;
+      (s.profile.avatarId ?? STARTER_AVATAR) !== STARTER_AVATAR ||
+      !!s.profile.banner ||
+      s.settings.theme !== DEFAULT_STATE.settings.theme ||
+      s.settings.accent !== DEFAULT_STATE.settings.accent;
     const rules: Record<string, boolean> = {
       "bem-vindo": true,
       "primeira-partida": anyPlayed,
@@ -475,6 +483,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       maratona: longest >= 2 * 3600,
       veterano: total >= 10 * 3600,
       cacador: Object.keys(s.unlocks).filter((k) => !k.startsWith(`${LAUNCHER_ID}:`)).length >= 10,
+      "primeira-compra": (s.profile.inventory ?? []).length > 0,
     };
     for (const [id, ok] of Object.entries(rules)) {
       if (ok && !s.unlocks[unlockKey(LAUNCHER_ID, id)]) unlock({ gameId: LAUNCHER_ID, id, at: Date.now() });
@@ -485,53 +494,64 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     () => Object.values(state.unlocks).reduce((a, u) => a + TIER_XP[describe(u).tier], 0),
     [state.unlocks, describe],
   );
-  const banners = useMemo<BannerOption[]>(() => {
-    const sources: Array<{ gameId: string; list: BannerDef[] }> = [
-      { gameId: LAUNCHER_ID, list: LAUNCHER_BANNERS },
-      ...games.map((g) => ({ gameId: g.id, list: g.banners ?? [] })),
-    ];
-    return sources.flatMap(({ gameId, list }) =>
-      list.map((def) => {
-        const unlocked = !def.unlock || !!state.unlocks[unlockKey(gameId, def.unlock)];
-        const req = def.unlock ? defsFor(gameId).find((d) => d.id === def.unlock) : undefined;
-        return {
-          ref: bannerRef(gameId, def.id),
-          gameId,
-          gameTitle: gameTitle(gameId),
-          def,
-          unlocked,
-          requirement: unlocked ? undefined : req?.hidden ? "uma conquista secreta" : (req?.title ?? def.unlock),
-        };
-      }),
-    );
-  }, [games, state.unlocks, defsFor, gameTitle]);
-
-  const current = state.profile.banner;
-  const bannerImage = current?.startsWith("ref:") ? banners.find((b) => b.ref === current)?.def.image : current;
-
   const level = Math.floor(xp / XP_PER_LEVEL) + 1;
 
-  const frames = useMemo<FrameOption[]>(
+  const shop = useMemo(() => buildShop(games, defsFor), [games, defsFor]);
+  const byId = useMemo(() => new Map(shop.map((i) => [i.id, i])), [shop]);
+  const item = useCallback((id: string | undefined) => (id ? byId.get(id) : undefined), [byId]);
+
+  const inventory = state.profile.inventory;
+  const grants = state.profile.grants;
+  const owned = useMemo(() => new Set([...(inventory ?? []), ...(grants ?? [])]), [inventory, grants]);
+  const owns = useCallback((id: string) => owned.has(id) || byId.get(id)?.price === 0, [owned, byId]);
+
+  const wallet = useMemo(
     () =>
-      FRAMES.map((def) => {
-        const rule = def.unlock;
-        let unlocked = true;
-        let requirement: string | undefined;
-        if (rule?.kind === "level") {
-          unlocked = level >= rule.level;
-          requirement = `Nível ${rule.level}`;
-        } else if (rule?.kind === "achievement") {
-          unlocked = !!state.unlocks[unlockKey(rule.gameId, rule.id)];
-          const d = defsFor(rule.gameId).find((x) => x.id === rule.id);
-          requirement = d?.hidden ? "uma conquista secreta" : (d?.title ?? rule.id);
-        } else if (rule?.kind === "tier") {
-          unlocked = Object.values(state.unlocks).some((u) => describe(u).tier === rule.tier);
-          requirement = `uma conquista ${rule.tier}`;
-        }
-        return { def, unlocked, requirement: unlocked ? undefined : requirement };
-      }),
-    [level, state.unlocks, defsFor, describe],
+      computeWallet(
+        Object.values(state.unlocks),
+        (u) => describe(u).tier,
+        state.stats,
+        level,
+        inventory ?? [],
+        (id) => byId.get(id)?.price ?? 0,
+      ),
+    [state.unlocks, state.stats, level, inventory, describe, byId],
   );
+
+  const canBuy = useCallback(
+    (it: ShopItem): BuyBlock => {
+      if (owns(it.id)) return { reason: "owned", text: "Você já tem" };
+      if (it.minLevel && level < it.minLevel) return { reason: "level", text: `Precisa do nível ${it.minLevel}` };
+      if (wallet.balance < it.price) return { reason: "coins", text: `Faltam ${it.price - wallet.balance} fichas` };
+      return null;
+    },
+    [owns, level, wallet.balance],
+  );
+
+  const buy = useCallback(
+    (it: ShopItem) => {
+      if (canBuy(it)) return false;
+      dispatch({ type: "buy", id: it.id });
+      if (stateRef.current.settings.sound) chime(it.rarity === "lendária" ? "épica" : it.rarity);
+      return true;
+    },
+    [canBuy],
+  );
+
+  const equip = useCallback(
+    (kind: ItemKind, id: string | undefined, bought?: boolean) => {
+      if (id && !bought && !owns(id)) return;
+      if (kind === "theme") dispatch({ type: "settings", patch: { theme: id ? id.slice("theme:".length) : DEFAULT_STATE.settings.theme } });
+      else if (kind === "wallpaper") dispatch({ type: "settings", patch: { wallpaper: id ?? DEFAULT_STATE.settings.wallpaper, ambient: false } });
+      else {
+        const slot = SLOT[kind];
+        if (slot) dispatch({ type: "profile", patch: { [slot]: id ?? (kind === "avatar" ? STARTER_AVATAR : undefined) } });
+      }
+    },
+    [owns],
+  );
+
+  const bannerImage = item(state.profile.banner)?.image;
 
   const titleUnlock = state.profile.title ? state.unlocks[state.profile.title] : undefined;
   const titleText = titleUnlock ? describe(titleUnlock).title : undefined;
@@ -556,10 +576,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     level,
     levelProgress,
     gameTitle,
-    banners,
     bannerImage,
-    frames,
     titleText,
+    shop,
+    item,
+    owns,
+    wallet,
+    canBuy,
+    buy,
+    equip,
   };
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

@@ -126,7 +126,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         await saveKey(snapKey(user.id), snap);
         // perfil: o da nuvem vale; conta nova recebe o deste PC
         const me = await hub.me();
-        if (me.profile && Object.keys(me.profile).length) dispatch({ type: "profile", patch: me.profile as Partial<Profile> });
+        if (me.profile && Object.keys(me.profile).length) dispatch({ type: "cloudProfile", profile: me.profile as Partial<Profile> });
         else {
           // conta nova: o perfil deste PC sobe, com o apelido da conta se o perfil ainda não tinha
           const profile = s.profile.nickname ? s.profile : { ...s.profile, nickname: user.nickname };

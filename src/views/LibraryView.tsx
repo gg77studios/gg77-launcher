@@ -1,9 +1,10 @@
-import { ArrowClockwise, DownloadSimple, LockSimple, MagnifyingGlass, PencilSimple, Play, Plus, ShieldCheck, Stop, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, Check, DownloadSimple, MagnifyingGlass, PencilSimple, Play, Plus, ShieldCheck, Stop, Storefront, Trash } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { AchievementCard } from "../components/AchievementCard";
 import { GameDialog } from "../components/GameDialog";
 import { unlockKey } from "../lib/catalog";
 import { fmtDuration, fmtRelative } from "../lib/format";
+import { useNav } from "../lib/nav";
 import { closeGame, launchInstalledGame } from "../lib/platform";
 import { type PackageState, useStore } from "../lib/state";
 import type { Game } from "../lib/types";
@@ -15,16 +16,22 @@ window.GG77?.unlock("primeira-vitoria", {
 });`;
 
 export function LibraryView() {
-  const { state, games, running, dispatch, play, defsFor, banners, describe, packages, installPackage, uninstallPackage, verifyPackage } =
+  const { state, games, running, dispatch, play, defsFor, shop, owns, describe, packages, installPackage, uninstallPackage, verifyPackage } =
     useStore();
+  const { go } = useNav();
+  const lib = state.settings.library;
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<{ mode: "add" } | { mode: "edit"; game: Game } | null>(null);
   const [error, setError] = useState("");
 
-  const shelf = useMemo(
-    () => games.filter((g) => g.title.toLowerCase().includes(query.trim().toLowerCase())),
-    [games, query],
-  );
+  const shelf = useMemo(() => {
+    const list = games.filter((g) => g.title.toLowerCase().includes(query.trim().toLowerCase()));
+    const st = (id: string) => state.stats[id];
+    if (lib.sort === "nome") list.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+    else if (lib.sort === "recente") list.sort((a, b) => (st(b.id)?.lastPlayed ?? 0) - (st(a.id)?.lastPlayed ?? 0));
+    else if (lib.sort === "tempo") list.sort((a, b) => (st(b.id)?.seconds ?? 0) - (st(a.id)?.seconds ?? 0));
+    return list;
+  }, [games, query, lib.sort, state.stats]);
   const game = games.find((g) => g.id === state.selectedGame) ?? games[0];
   const stats = state.stats[game.id];
   const defs = defsFor(game.id);
@@ -33,7 +40,8 @@ export function LibraryView() {
   const unlockedCount = defs.filter((d) => state.unlocks[unlockKey(game.id, d.id)]).length + extra.length;
   const total = defs.length + extra.length;
   const isRunning = running.has(game.id);
-  const rewards = banners.filter((b) => b.gameId === game.id);
+  // itens da loja com a arte deste jogo (banners e avatares)
+  const rewards = shop.filter((i) => i.gameId === game.id);
 
   const pkg = game.package ? packages[game.id] : undefined;
 
@@ -61,7 +69,7 @@ export function LibraryView() {
   const primary = primaryAction(game, pkg, isRunning);
 
   return (
-    <div className="library">
+    <div className="library" data-layout={lib.layout} data-size={lib.size}>
       <section className="lib-hero" aria-labelledby="game-title">
         {isRunning && <span className="hero-kicker">Jogando agora</span>}
         <h1 id="game-title">{game.title}</h1>
@@ -171,13 +179,19 @@ export function LibraryView() {
                 >
                   <span
                     className="capsule-art"
-                    style={{ background: g.tint, backgroundImage: g.cover || g.banner ? `url(${g.cover ?? g.banner})` : undefined }}
+                    style={{
+                      background: g.tint,
+                      // na lista a miniatura é quadrada: o ícone do jogo cabe melhor que a capa cortada
+                      backgroundImage:
+                        lib.layout === "lista" && g.icon ? `url(${g.icon})` : g.cover || g.banner ? `url(${g.cover ?? g.banner})` : undefined,
+                    }}
                   >
                     {!g.cover && !g.banner && g.title[0]}
                     {g.icon && (g.cover || g.banner) && <img className="capsule-icon" src={g.icon} alt="" />}
                     {running.has(g.id) && <i className="live-dot" aria-label="em execução" />}
                   </span>
                   <span className="capsule-title">{g.title}</span>
+                  {lib.layout === "lista" && <span className="capsule-last">{st?.lastPlayed ? `jogado ${fmtRelative(st.lastPlayed)}` : ""}</span>}
                   <span className="capsule-sub" data-update={packages[g.id]?.updateAvailable || undefined}>
                     {running.has(g.id)
                       ? "jogando"
@@ -237,21 +251,23 @@ export function LibraryView() {
         {rewards.length > 0 && (
           <section className="panel glass rewards">
             <div className="panel-head">
-              <h2>Banners do jogo</h2>
-              <span className="muted">
-                {rewards.filter((b) => b.unlocked).length} de {rewards.length}
-              </span>
+              <h2>Na loja</h2>
+              <button type="button" className="link-btn" onClick={() => go("loja", { tab: rewards.some((r) => r.kind === "banner") ? "banner" : "avatar", gameId: game.id })}>
+                <Storefront size={14} aria-hidden /> {rewards.filter((r) => owns(r.id)).length} de {rewards.length} na coleção
+              </button>
             </div>
             <ul>
-              {rewards.map((b) => (
-                <li key={b.ref} data-locked={!b.unlocked || undefined} title={b.unlocked ? b.def.title : `Libere com: ${b.requirement}`}>
-                  <span className="reward-img" style={b.def.image ? { backgroundImage: `url(${b.def.image})` } : undefined}>
-                    {!b.unlocked && <LockSimple size={14} weight="bold" aria-hidden />}
-                  </span>
-                  <span className="reward-text">
-                    <strong>{b.def.title}</strong>
-                    <span>{b.unlocked ? "liberado" : b.requirement}</span>
-                  </span>
+              {rewards.slice(0, 8).map((r) => (
+                <li key={r.id} data-kind={r.kind} title={r.name}>
+                  <button type="button" onClick={() => go("loja", { tab: r.kind === "banner" ? "banner" : "avatar", gameId: game.id })}>
+                    <span className="reward-img" data-pixel={r.pixel || undefined} style={r.image ? { backgroundImage: `url(${r.image})` } : undefined}>
+                      {owns(r.id) && <Check size={14} weight="bold" aria-hidden />}
+                    </span>
+                    <span className="reward-text">
+                      <strong>{r.name}</strong>
+                      <span>{owns(r.id) ? "na coleção" : `${r.price} fichas`}</span>
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

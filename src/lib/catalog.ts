@@ -1,4 +1,4 @@
-import type { AchievementDef, BannerDef, FrameDef, Game, Persisted, Tier } from "./types";
+import type { AchievementDef, AvatarDef, BannerDef, Game, Persisted, Tier } from "./types";
 
 /** Põe o ícone de cada conquista a partir do id (arquivo com o mesmo nome na pasta). */
 const withIcons = (dir: string, ext: string, list: AchievementDef[]): AchievementDef[] =>
@@ -58,7 +58,7 @@ export const CATALOG: Game[] = [
       { match: "^enemy_kills_", icon: `${IDLE_ICONS}extra-medal.png` },
       { match: ".", icon: `${IDLE_ICONS}extra-default.png` },
     ],
-    // banners de perfil com a arte do próprio jogo, cada um liberado por uma conquista ligada a ele
+    // banners de perfil com a arte do próprio jogo, vendidos na loja (`unlock` é legado: migração e raridade)
     banners: [
       { id: "floresta", title: "Floresta Sombria", image: "/games/idle-legends/banners/floresta.jpg", unlock: "primeira-vitoria" },
       { id: "minas", title: "Minas", image: "/games/idle-legends/banners/minas.jpg", unlock: "nivel-10" },
@@ -172,7 +172,7 @@ export const CATALOG: Game[] = [
   },
 ];
 
-/** Banners do próprio launcher (arte gerada no Gemini), liberados pelas conquistas de uso. */
+/** Banners do próprio launcher (arte gerada no Gemini), vendidos na loja. `unlock` é legado (migração). */
 export const LAUNCHER_BANNERS: BannerDef[] = [
   { id: "padrao", title: "Padrão" },
   { id: "portao", title: "Portão da guilda", image: "/games/launcher/banners/portao.jpg", unlock: "bem-vindo" },
@@ -191,24 +191,17 @@ export const LAUNCHER_ID = "launcher";
 export const LAUNCHER_ACHIEVEMENTS: AchievementDef[] = withIcons("/games/launcher/achievements/", ".jpg", [
   { id: "bem-vindo", title: "Bem-vindo à guilda", description: "Abra o launcher pela primeira vez.", tier: "comum" },
   { id: "primeira-partida", title: "Apertou o play", description: "Abra um jogo pelo launcher.", tier: "comum" },
-  { id: "estilo-proprio", title: "Estilo próprio", description: "Troque o avatar, o banner ou a cor do launcher.", tier: "comum" },
+  { id: "estilo-proprio", title: "Estilo próprio", description: "Troque o avatar, o banner, o tema ou a cor do launcher.", tier: "comum" },
   { id: "colecionador", title: "Colecionador", description: "Tenha 3 jogos na biblioteca.", tier: "comum" },
   { id: "fiel", title: "Frequentador", description: "Jogue em 3 dias diferentes.", tier: "rara" },
   { id: "maratona", title: "Maratona", description: "Fique 2 horas seguidas num jogo.", tier: "rara" },
   { id: "veterano", title: "Dez horas de estrada", description: "Some 10 horas de jogo.", tier: "épica" },
   { id: "cacador", title: "Caçador de troféus", description: "Libere 10 conquistas.", tier: "épica" },
+  { id: "primeira-compra", title: "Primeira compra", description: "Compre um item na loja.", tier: "comum" },
 ]);
 
-/** Molduras do avatar. Cada uma é liberada por nível, por uma conquista ou por ter uma conquista épica. */
-export const FRAMES: FrameDef[] = [
-  { id: "vidro", name: "Vidro" },
-  { id: "neon", name: "Neon", unlock: { kind: "level", level: 3 } },
-  { id: "pixel", name: "Pixel", unlock: { kind: "achievement", gameId: "idle-legends", id: "primeira-vitoria" } },
-  { id: "chamas", name: "Chamas", unlock: { kind: "achievement", gameId: "idle-legends", id: "feat_ruin_1" } },
-  { id: "ouro", name: "Ouro", unlock: { kind: "tier", tier: "épica" } },
-  { id: "gladiador", name: "Gladiador", unlock: { kind: "achievement", gameId: "idle-legends", id: "arena-top3" } },
-  { id: "holografica", name: "Holográfica", unlock: { kind: "level", level: 10 } },
-];
+/** Avatares prontos do launcher (folha gerada no Gemini). Os seis primeiros vêm com a conta. */
+export const LAUNCHER_AVATARS: AvatarDef[] = [];
 
 export const TIER_XP: Record<Tier, number> = { comum: 10, rara: 25, épica: 50 };
 
@@ -233,8 +226,22 @@ export const AVATAR_PRESETS = [
 ];
 
 export const DEFAULT_STATE: Persisted = {
-  profile: { nickname: "Jogador", bio: "", avatarPreset: 0, showcase: [] },
-  settings: { theme: "grafite", accent: ACCENTS[0].value, ambient: true, glass: "liquido", sound: true, notifications: true },
+  profile: { nickname: "Jogador", bio: "", avatarId: "avatar:ini-0", showcase: [], frame: "frame:vidro", inventory: [], grants: [] },
+  settings: {
+    theme: "grafite",
+    accent: ACCENTS[0].value,
+    ambient: true,
+    wallpaper: "wallpaper:degrade",
+    glass: "liquido",
+    sound: true,
+    notifications: true,
+    library: { layout: "carrossel", size: "m", sort: "padrao" },
+    sidebar: { mode: "expandida", side: "esquerda" },
+    font: "figtree",
+    density: "confortavel",
+    corners: "arredondado",
+    motion: "tudo",
+  },
   customGames: [],
   overrides: {},
   stats: {},
