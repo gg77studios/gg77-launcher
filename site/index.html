@@ -387,6 +387,68 @@
         gap: 16px;
       }
 
+      /* perfil e loja */
+      .style {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        gap: 28px;
+        align-items: center;
+      }
+
+      .style figure {
+        position: relative;
+        margin: 0;
+        padding: 10px;
+        border-radius: 26px;
+      }
+
+      .style figure img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 18px;
+      }
+
+      .style ul {
+        display: grid;
+        gap: 18px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .style li {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .style li i {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: rgb(212 255 63 / 0.12);
+        color: var(--accent);
+        font-size: 24px;
+      }
+
+      .style h3 {
+        margin: 2px 0 4px;
+        font-family: var(--display);
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .style li p {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 15px;
+      }
+
       /* jogos */
       .game {
         display: grid;
@@ -525,6 +587,7 @@
         }
         .perks,
         .steps,
+        .style,
         .perk-row {
           grid-template-columns: 1fr;
         }
@@ -600,7 +663,7 @@
             <p class="others" id="others">Windows 10/11 e Linux, 64 bits.</p>
           </div>
           <figure class="shot glass">
-            <img src="img/biblioteca.jpg" width="1440" height="900" alt="Biblioteca do GG77 Launcher com o Legendforge, tempo de jogo, sessões e conquistas" />
+            <img src="img/biblioteca.jpg" width="1440" height="900" alt="Biblioteca do GG77 Launcher com Legendforge, Clanfall e No Corre, tempo de jogo, sessões e conquistas" />
           </figure>
         </section>
       </main>
@@ -642,6 +705,41 @@
               <p>Logado no launcher, você entra direto nos jogos.</p>
             </article>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="style-title">
+      <div class="wrap">
+        <h2 id="style-title">Seu perfil, do seu jeito</h2>
+        <p>Jogar rende fichas: cada conquista, hora jogada e nível conta. Na loja do launcher elas viram visual para o seu perfil e para o próprio launcher.</p>
+        <div class="style">
+          <figure class="glass">
+            <img src="img/perfil.jpg" width="1440" height="900" alt="Perfil no GG77 Launcher com avatar de raposa, moldura de chamas, banner de cerejeiras e nome dourado" loading="lazy" />
+          </figure>
+          <ul>
+            <li>
+              <i class="ph ph-storefront" aria-hidden="true"></i>
+              <div>
+                <h3>Loja de visuais</h3>
+                <p>Avatares com a arte dos jogos, banners, molduras animadas, efeitos e estilos de nome. Prove no seu perfil antes de comprar.</p>
+              </div>
+            </li>
+            <li>
+              <i class="ph ph-user-circle" aria-hidden="true"></i>
+              <div>
+                <h3>Perfil que os amigos veem</h3>
+                <p>Monte o cartão com o que você colecionou. É o mesmo cartão que aparece quando um amigo abre o seu perfil.</p>
+              </div>
+            </li>
+            <li>
+              <i class="ph ph-paint-brush" aria-hidden="true"></i>
+              <div>
+                <h3>Launcher com a sua cara</h3>
+                <p>Temas, fundos animados, biblioteca em carrossel, grade ou lista, barra lateral compacta e de qualquer lado.</p>
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
     </section>
