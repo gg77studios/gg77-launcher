@@ -7,6 +7,8 @@ const withIcons = (dir: string, ext: string, list: AchievementDef[]): Achievemen
 const IDLE_ICONS = "/games/idle-legends/achievements/";
 const TRIBOS_ICONS = "/games/tribos/achievements/";
 const TRIBOS_BANNERS = "/games/tribos/banners/";
+const CORRE_ICONS = "/games/corre/achievements/";
+const CORRE_BANNERS = "/games/corre/banners/";
 
 /** Jogos que já vêm no launcher. Para adicionar um novo jogo do grupo, inclua aqui. */
 export const CATALOG: Game[] = [
@@ -125,6 +127,47 @@ export const CATALOG: Game[] = [
       { id: "arquipelago", title: "Arquipélago", image: `${TRIBOS_BANNERS}arquipelago.jpg`, unlock: "ilheu" },
       { id: "forja", title: "Forja do clã", image: `${TRIBOS_BANNERS}forja.jpg`, unlock: "caudilho" },
       { id: "trono", title: "Salão do trono", image: `${TRIBOS_BANNERS}trono.jpg`, unlock: "senhor_da_guerra" },
+    ],
+  },
+  {
+    id: "corre",
+    title: "Corre",
+    // jogo só de cliente (sem servidor): o save fica no aparelho (localStorage "corre_save_v2")
+    url: "",
+    package: { manifest: "https://github.com/gg77studios/gg77-builds/releases/download/catalog/corre.json" },
+    cover: "/games/corre/cover.jpg",
+    banner: "/games/corre/banner.jpg",
+    icon: "/games/corre/icon.png",
+    tint: "#2a1d2e",
+    tagline: "Toque uma lanchonete em pixel art: de dia atende, de noite fecha o caixa.",
+    // ícones: sprites do próprio jogo em medalhas (pixel art)
+    pixelArt: true,
+    // O jogo manda estas conquistas pelo SDK (client/src/launcher.ts no repositório do jogo):
+    // as metas do jogo (GOALS em shared/src/economy.ts) e alguns momentos.
+    achievements: withIcons(CORRE_ICONS, ".png", [
+      { id: "tutorial", title: "Aprendiz de chapeiro", description: "Termine o dia de treino.", tier: "comum" },
+      { id: "primeiro-dia", title: "Portas abertas", description: "Feche o caixa do primeiro dia de verdade.", tier: "comum" },
+      { id: "maquininha", title: "Aceita cartão", description: "Compre uma maquininha de cartão.", tier: "comum" },
+      { id: "dia500", title: "Dia bom", description: "Venda R$ 500 num dia.", tier: "comum" },
+      { id: "cardapio3", title: "Cardápio variado", description: "Tenha 3 itens no cardápio.", tier: "comum" },
+      { id: "pesquisa", title: "Ouvindo o bairro", description: "Faça uma pesquisa de mercado.", tier: "comum" },
+      { id: "app", title: "Tô no app", description: "Entre no app de delivery.", tier: "comum" },
+      { id: "funcionario", title: "Primeira contratação", description: "Contrate o primeiro funcionário.", tier: "comum" },
+      { id: "nota45", title: "Cinco estrelas", description: "Chegue na nota 4,5.", tier: "rara" },
+      { id: "dia1500", title: "Casa cheia", description: "Venda R$ 1.500 num dia.", tier: "rara" },
+      { id: "salinha", title: "Saiu da garagem", description: "Mude pra uma salinha no bairro.", tier: "rara" },
+      { id: "me", title: "Agora é ME", description: "Vire ME no Simples Nacional.", tier: "rara" },
+      { id: "mes-no-verde", title: "Mês no verde", description: "Feche um mês com lucro.", tier: "rara" },
+      { id: "erp", title: "Gestão de verdade", description: "Compre o sistema de gestão (ERP).", tier: "rara" },
+      { id: "centro", title: "Loja no centro", description: "Abra a loja no centro.", tier: "épica" },
+      { id: "mil", title: "Mil clientes", description: "Atenda 1.000 clientes.", tier: "épica" },
+      { id: "influencer", title: "Influencer do bairro", description: "Chegue a 500 seguidores.", tier: "épica", hidden: true },
+    ]),
+    iconRules: [{ match: ".", icon: `${CORRE_ICONS}extra-default.png` }],
+    // banners de perfil com a arte do jogo (Gemini)
+    banners: [
+      { id: "esquina", title: "Esquina ao entardecer", image: `${CORRE_BANNERS}esquina.jpg`, unlock: "primeiro-dia" },
+      { id: "balcao", title: "Atrás do balcão", image: `${CORRE_BANNERS}balcao.jpg`, unlock: "mes-no-verde" },
     ],
   },
 ];
