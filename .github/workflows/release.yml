@@ -65,7 +65,20 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "GG77 Launcher ${{ github.ref_name }}"
           releaseBody: "Windows: baixe o arquivo terminado em -setup.exe. Linux: .AppImage (roda direto e se atualiza sozinho) ou .deb."
-          releaseDraft: false
+          # rascunho até os dois builds terminarem (job publish): enquanto isso a "latest"
+          # continua sendo a versão anterior, e o site de download não fica sem instaladores
+          releaseDraft: true
           # latest.json: o que o launcher instalado consulta para se atualizar
           includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publica a release (vira a "latest" com todos os instaladores)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false --latest
