@@ -1,5 +1,5 @@
-import { ArrowClockwise, Check, DownloadSimple, MagnifyingGlass, PencilSimple, Play, Plus, ShieldCheck, Stop, Storefront, Trash } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { ArrowClockwise, Clock, DotsThree, DownloadSimple, MagnifyingGlass, PencilSimple, Play, Plus, ShieldCheck, Stop, Trash, Trophy } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AchievementCard } from "../components/AchievementCard";
 import { GameDialog } from "../components/GameDialog";
 import { unlockKey } from "../lib/catalog";
@@ -16,8 +16,7 @@ window.GG77?.unlock("primeira-vitoria", {
 });`;
 
 export function LibraryView() {
-  const { state, games, running, dispatch, play, defsFor, shop, owns, describe, packages, installPackage, uninstallPackage, verifyPackage } =
-    useStore();
+  const { state, games, running, dispatch, play, defsFor, describe, packages, installPackage, uninstallPackage, verifyPackage } = useStore();
   const { go } = useNav();
   const lib = state.settings.library;
   const [query, setQuery] = useState("");
@@ -40,8 +39,13 @@ export function LibraryView() {
   const unlockedCount = defs.filter((d) => state.unlocks[unlockKey(game.id, d.id)]).length + extra.length;
   const total = defs.length + extra.length;
   const isRunning = running.has(game.id);
-  // itens da loja com a arte deste jogo (banners e avatares)
-  const rewards = shop.filter((i) => i.gameId === game.id);
+  // resumo: as últimas liberadas e, depois, as próximas que ainda faltam (secretas ficam de fora)
+  const highlights = [
+    ...[...extra, ...defs.map((d) => state.unlocks[unlockKey(game.id, d.id)]).filter((u): u is NonNullable<typeof u> => !!u)]
+      .sort((a, b) => b.at - a.at)
+      .map((u) => ({ def: defs.find((d) => d.id === u.id) ?? { id: u.id, ...describe(u) }, unlock: u })),
+    ...defs.filter((d) => !d.hidden && !state.unlocks[unlockKey(game.id, d.id)]).map((d) => ({ def: d, unlock: undefined })),
+  ].slice(0, 6);
 
   const pkg = game.package ? packages[game.id] : undefined;
 
@@ -74,6 +78,28 @@ export function LibraryView() {
         {isRunning && <span className="hero-kicker">Jogando agora</span>}
         <h1 id="game-title">{game.title}</h1>
         {game.tagline && <p>{game.tagline}</p>}
+        <p className="hero-meta">
+          <span>
+            <Clock size={15} aria-hidden /> {stats?.seconds ? fmtDuration(stats.seconds) : "nunca jogado"}
+          </span>
+          {stats?.lastPlayed && <span>última vez {fmtRelative(stats.lastPlayed)}</span>}
+          {total > 0 && (
+            <span>
+              <Trophy size={15} aria-hidden /> {unlockedCount} de {total}
+            </span>
+          )}
+          {game.package && pkg && (
+            <span className="hero-meta-pkg" data-update={pkg.updateAvailable || undefined}>
+              {pkg.updateAvailable && pkg.latest
+                ? `versão ${pkg.latest} disponível`
+                : pkg.installed
+                  ? `v${pkg.installed}`
+                  : pkg.error && game.url
+                    ? "pacote indisponível, abre a versão web"
+                    : "não instalado"}
+            </span>
+          )}
+        </p>
         <div className="hero-actions">
           {pkg?.busy === "install" ? (
             <div className="btn btn--accent btn--play install-progress" role="status" aria-live="polite">
@@ -89,71 +115,26 @@ export function LibraryView() {
               {primary.label}
             </button>
           )}
-          {pkg?.updateAvailable && !pkg.busy && (
-            <button type="button" className="btn glass glass--btn" onClick={() => void launchCurrent()}>
-              <Play size={16} weight="fill" aria-hidden /> Jogar a {pkg.installed}
-            </button>
-          )}
           {isRunning && (
             <button type="button" className="btn glass glass--btn" onClick={() => void closeGame(game.id)}>
               <Stop size={16} weight="fill" aria-hidden /> Fechar jogo
             </button>
           )}
-          <button type="button" className="btn glass glass--btn" onClick={() => setDialog({ mode: "edit", game })}>
-            <PencilSimple size={16} aria-hidden /> Editar
-          </button>
-          {game.custom && (
-            <button type="button" className="btn glass glass--btn" onClick={() => dispatch({ type: "removeGame", id: game.id })}>
-              <Trash size={16} aria-hidden /> Remover
-            </button>
-          )}
-          {pkg?.installed && !pkg.busy && !isRunning && (
-            <>
-              <button type="button" className="btn glass glass--btn" onClick={() => void verifyPackage(game)}>
-                <ShieldCheck size={16} aria-hidden /> Verificar arquivos
-              </button>
-              <button type="button" className="btn glass glass--btn" onClick={() => void uninstallPackage(game)}>
-                <Trash size={16} aria-hidden /> Desinstalar
-              </button>
-            </>
-          )}
+          <MoreMenu
+            items={[
+              pkg?.updateAvailable && !pkg.busy && { label: `Jogar a ${pkg.installed} (sem atualizar)`, icon: <Play size={16} />, run: () => void launchCurrent() },
+              { label: "Editar nome e imagens", icon: <PencilSimple size={16} />, run: () => setDialog({ mode: "edit", game }) },
+              pkg?.installed && !pkg.busy && !isRunning && { label: "Verificar arquivos", icon: <ShieldCheck size={16} />, run: () => void verifyPackage(game) },
+              pkg?.installed && !pkg.busy && !isRunning && { label: "Desinstalar", icon: <Trash size={16} />, run: () => void uninstallPackage(game), danger: true },
+              game.custom && { label: "Remover da biblioteca", icon: <Trash size={16} />, run: () => dispatch({ type: "removeGame", id: game.id }), danger: true },
+            ]}
+          />
         </div>
-        {game.package && pkg && (
-          <p className="pkg-line">
-            {pkg.installed ? `Versão ${pkg.installed} instalada` : "Ainda não instalado"}
-            {pkg.updateAvailable && pkg.latest && <b> · versão {pkg.latest} disponível</b>}
-            {!pkg.installed && pkg.error && game.url && <span> · pacote indisponível, abrindo a versão web</span>}
-          </p>
-        )}
         {(error || pkg?.message) && (
           <p className={error ? "form-error" : "pkg-message"} role={error ? "alert" : "status"}>
             {error || pkg?.message}
           </p>
         )}
-
-        <dl className="stat-pills">
-          <div className="glass">
-            <dt>Tempo de jogo</dt>
-            <dd>{fmtDuration(stats?.seconds ?? 0)}</dd>
-          </div>
-          <div className="glass">
-            <dt>Última vez</dt>
-            <dd>{fmtRelative(stats?.lastPlayed)}</dd>
-          </div>
-          <div className="glass">
-            <dt>Sessões</dt>
-            <dd>{stats?.sessions ?? 0}</dd>
-          </div>
-          <div className="glass">
-            <dt>Conquistas</dt>
-            <dd>
-              {unlockedCount}/{total}
-              <span className="mini-bar" aria-hidden>
-                <i style={{ width: total ? `${(unlockedCount / total) * 100}%` : 0 }} />
-              </span>
-            </dd>
-          </div>
-        </dl>
       </section>
 
       <section className="dock glass" aria-label="Seus jogos">
@@ -220,60 +201,41 @@ export function LibraryView() {
         {!shelf.length && <p className="muted dock-empty">Nenhum jogo com esse nome.</p>}
       </section>
 
-      <div className="lib-lower">
-        <section className="panel glass">
-          <div className="panel-head">
-            <h2>Conquistas</h2>
-            <span className="muted">
-              {unlockedCount} de {total}
-            </span>
-          </div>
-          {total ? (
-            <div className="ach-list">
-              {extra.map((u) => (
-                <AchievementCard key={u.id} def={{ id: u.id, ...describe(u) }} unlock={u} pixel={game.pixelArt} compact />
-              ))}
-              {defs.map((d) => (
-                <AchievementCard key={d.id} def={d} unlock={state.unlocks[unlockKey(game.id, d.id)]} pixel={game.pixelArt} compact />
-              ))}
-            </div>
-          ) : (
-            <div className="sdk">
-              <p>Este jogo ainda não envia conquistas. Para integrar, o jogo chama o SDK que o launcher injeta na janela:</p>
-              <pre>
-                <code>{SDK_SNIPPET}</code>
-              </pre>
-              <p className="muted">Fora do launcher, window.GG77 não existe e a chamada é ignorada.</p>
-            </div>
+      <section className="panel glass lib-ach" aria-labelledby="lib-ach-title">
+        <div className="panel-head">
+          <h2 id="lib-ach-title">Conquistas</h2>
+          {total > 0 && (
+            <button type="button" className="link-btn" onClick={() => go("conquistas", { gameId: game.id })}>
+              Ver todas
+            </button>
           )}
-        </section>
-
-        {rewards.length > 0 && (
-          <section className="panel glass rewards">
-            <div className="panel-head">
-              <h2>Na loja</h2>
-              <button type="button" className="link-btn" onClick={() => go("loja", { tab: rewards.some((r) => r.kind === "banner") ? "banner" : "avatar", gameId: game.id })}>
-                <Storefront size={14} aria-hidden /> {rewards.filter((r) => owns(r.id)).length} de {rewards.length} na coleção
-              </button>
+        </div>
+        {total ? (
+          <>
+            <div className="lib-ach-progress">
+              <span className="mini-bar" aria-hidden>
+                <i style={{ width: `${(unlockedCount / total) * 100}%` }} />
+              </span>
+              <span className="muted">
+                {unlockedCount} de {total}
+              </span>
             </div>
-            <ul>
-              {rewards.slice(0, 8).map((r) => (
-                <li key={r.id} data-kind={r.kind} title={r.name}>
-                  <button type="button" onClick={() => go("loja", { tab: r.kind === "banner" ? "banner" : "avatar", gameId: game.id })}>
-                    <span className="reward-img" data-pixel={r.pixel || undefined} style={r.image ? { backgroundImage: `url(${r.image})` } : undefined}>
-                      {owns(r.id) && <Check size={14} weight="bold" aria-hidden />}
-                    </span>
-                    <span className="reward-text">
-                      <strong>{r.name}</strong>
-                      <span>{owns(r.id) ? "na coleção" : `${r.price} fichas`}</span>
-                    </span>
-                  </button>
-                </li>
+            <div className="ach-strip">
+              {highlights.map((h) => (
+                <AchievementCard key={h.def.id} def={h.def} unlock={h.unlock} pixel={game.pixelArt} compact />
               ))}
-            </ul>
-          </section>
+            </div>
+          </>
+        ) : (
+          <div className="sdk">
+            <p>Este jogo ainda não envia conquistas. Para integrar, o jogo chama o SDK que o launcher injeta na janela:</p>
+            <pre>
+              <code>{SDK_SNIPPET}</code>
+            </pre>
+            <p className="muted">Fora do launcher, window.GG77 não existe e a chamada é ignorada.</p>
+          </div>
         )}
-      </div>
+      </section>
 
       {dialog && (
         <GameDialog
@@ -320,4 +282,62 @@ function progressLabel(pkg: PackageState) {
   if (p.phase === "extract") return "Instalando…";
   if (p.phase === "done") return "Pronto";
   return `Baixando ${Math.round(progressPct(pkg) * 100)}%`;
+}
+
+type MenuItem = { label: string; icon: React.ReactNode; run: () => void; danger?: boolean };
+
+/** Ações que não são o "Jogar" ficam num menu, para o topo da biblioteca não virar uma fileira de botões. */
+function MoreMenu({ items }: { items: Array<MenuItem | false | undefined | null | ""> }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const list = items.filter((i): i is MenuItem => !!i);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+
+  if (!list.length) return null;
+  return (
+    <div className="more" ref={ref}>
+      <button
+        type="button"
+        className="btn glass glass--btn more-btn"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Mais opções"
+        title="Mais opções"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <DotsThree size={20} weight="bold" aria-hidden />
+      </button>
+      {open && (
+        <div className="more-menu" role="menu">
+          {list.map((i) => (
+            <button
+              key={i.label}
+              type="button"
+              role="menuitem"
+              data-danger={i.danger || undefined}
+              onClick={() => {
+                setOpen(false);
+                i.run();
+              }}
+            >
+              {i.icon}
+              {i.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

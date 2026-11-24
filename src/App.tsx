@@ -34,7 +34,7 @@ const FONT_FAMILY: Record<string, string> = {
 };
 
 export function App() {
-  const { state, ready, games, level, levelProgress, xp, bannerImage, titleText, item, wallet } = useStore();
+  const { state, ready, games, level, levelProgress, xp, titleText, item, wallet } = useStore();
   const [view, setView] = useState<View>("biblioteca");
   const [shopIntent, setShopIntent] = useState<ShopIntent>();
   const reduce = useReducedMotion();
@@ -44,7 +44,8 @@ export function App() {
   const compact = settings.sidebar.mode === "compacta";
 
   const go = useCallback((v: View, intent?: Omit<ShopIntent, "at">) => {
-    if (intent) setShopIntent({ ...intent, at: Date.now() });
+    // pedido novo ou nenhum: um pedido antigo não pode reabrir a loja/conquistas num filtro velho
+    setShopIntent(intent ? { ...intent, at: Date.now() } : undefined);
     setView(v);
   }, []);
   const nav = useMemo(() => ({ view, go, shopIntent }), [view, go, shopIntent]);
@@ -55,14 +56,14 @@ export function App() {
     mainRef.current?.scrollTo(0, 0);
   }, [view]);
 
-  // papel de parede: a arte do jogo selecionado (ou o fundo escolhido); no perfil, o banner do perfil
+  // papel de parede: a arte do jogo selecionado ou o fundo escolhido (o banner é só do cartão do perfil)
   const chosen = item(settings.wallpaper);
   const backdrop = settings.ambient
     ? { image: selected?.banner }
     : chosen?.kind === "banner"
       ? { image: chosen.image }
       : { pattern: itemValue(chosen?.id ?? "wallpaper:degrade") };
-  const wall = view === "perfil" && bannerImage ? { image: bannerImage } : backdrop;
+  const wall = backdrop;
   const wallKey = wall.image ?? `p:${wall.pattern ?? "degrade"}`;
 
   const themeVars = {

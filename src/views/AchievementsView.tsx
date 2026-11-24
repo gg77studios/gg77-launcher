@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNav } from "../lib/nav";
 import { AchievementCard } from "../components/AchievementCard";
 import { LAUNCHER_ID, unlockKey, XP_PER_LEVEL } from "../lib/catalog";
 import { useStore } from "../lib/state";
@@ -8,7 +9,9 @@ type Row = { gameId: string; def: AchievementDef; unlock?: Unlock };
 
 export function AchievementsView() {
   const { state, games, defsFor, gameTitle, xp, level, levelProgress, describe } = useStore();
-  const [filter, setFilter] = useState<string>("todas");
+  // a Biblioteca abre esta tela já no jogo selecionado
+  const { shopIntent } = useNav();
+  const [filter, setFilter] = useState<string>(shopIntent?.gameId ?? "todas");
   const [onlyUnlocked, setOnlyUnlocked] = useState(false);
 
   const sources = useMemo(() => [LAUNCHER_ID, ...games.map((g) => g.id)], [games]);

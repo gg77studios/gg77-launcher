@@ -1037,47 +1037,98 @@
   margin-top: 0;
 }
 
-.builder-grid {
+/* editor: abas das peças à esquerda, opções da peça escolhida à direita */
+.builder-body {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 24px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
 }
 
-.slot {
+.builder-tabs {
+  display: grid;
+  gap: 4px;
+  position: sticky;
+  top: 0;
+}
+
+.builder-tabs button {
+  display: grid;
+  gap: 1px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.builder-tabs button:hover {
+  background: var(--glass-soft);
+  color: var(--ink);
+}
+
+.builder-tabs button[aria-selected="true"] {
+  border-color: var(--glass-rim);
+  background:
+    radial-gradient(120% 120% at 20% 0%, var(--glass-sheen), transparent 60%),
+    rgb(255 255 255 / 0.08);
+  color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.builder-tab-name {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.builder-tab-name em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.builder-tab-using {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--accent-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.builder-pane {
   min-width: 0;
 }
 
-.slot h3 {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin: 0 0 4px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-2);
+.builder-hint {
+  margin: 4px 0 12px;
+  font-size: 12.5px;
 }
 
-.slot h3 .muted {
-  font-size: 12px;
+/* todas as opções à vista: a grade quebra linha, sem rolagem lateral */
+.builder-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
 }
 
-.slot-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 12px 4px 8px;
-  scrollbar-width: thin;
+.builder-grid[data-wide] {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 }
 
 .slot-tile {
-  flex: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  width: 96px;
-  padding: 10px 6px 8px;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 8px 10px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--glass-soft);
@@ -1090,10 +1141,7 @@
 
 .slot-tile:hover {
   transform: translateY(-2px);
-}
-
-.slot[data-wide] .slot-tile {
-  width: 164px;
+  border-color: var(--glass-rim);
 }
 
 .slot-tile[aria-checked="true"] {
@@ -1105,13 +1153,13 @@
   display: grid;
   place-items: center;
   width: 100%;
-  min-height: 60px;
+  min-height: 72px;
 }
 
 .slot-name {
   max-width: 100%;
   overflow: hidden;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   text-align: center;
   text-overflow: ellipsis;
@@ -1119,7 +1167,7 @@
 }
 
 .slot-tile--none .slot-art {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--ink-3);
 }
@@ -1129,8 +1177,37 @@
   color: var(--accent-text);
 }
 
-.slot .nick-preview {
+.builder-grid .nick-preview {
+  font-size: 15px;
+}
+
+/* títulos: só o texto, numa lista de pílulas */
+.title-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.title-opt {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--glass-soft);
+  color: var(--ink);
+  font-weight: 600;
   font-size: 13px;
+  cursor: pointer;
+}
+
+.title-opt:hover {
+  border-color: var(--glass-rim);
+}
+
+.title-opt[aria-checked="true"] {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  color: var(--accent-text);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 /* ---------- loja ---------- */
@@ -1805,9 +1882,8 @@
   overflow-y: auto;
 }
 
-.library[data-layout="lista"] .lib-lower {
+.library[data-layout="lista"] .lib-ach {
   grid-area: lower;
-  grid-template-columns: 1fr;
 }
 
 .library[data-layout="lista"] .dock-head {
@@ -1935,7 +2011,7 @@
 }
 
 @media (max-width: 1180px) {
-  .builder-grid,
+  .builder-body,
   .launcher-settings {
     grid-template-columns: 1fr;
   }
@@ -1955,5 +2031,118 @@
   .library[data-layout="lista"] .dock {
     position: static;
     max-height: none;
+  }
+}
+
+/* ---------- biblioteca: topo enxuto ---------- */
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 14px 0 0;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hero-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hero-meta svg {
+  color: var(--accent-text);
+}
+
+.hero-meta-pkg {
+  color: var(--ink-3);
+}
+
+.hero-meta-pkg[data-update] {
+  color: var(--accent-text);
+}
+
+.more {
+  position: relative;
+}
+
+.more-btn {
+  width: 44px;
+  justify-content: center;
+  padding: 0;
+}
+
+.more-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 20;
+  display: grid;
+  min-width: 230px;
+  padding: 6px;
+  border: 1px solid var(--glass-rim);
+  border-radius: 16px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 24px 48px -20px rgb(0 0 0 / 0.7);
+}
+
+.more-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.more-menu button:hover {
+  background: var(--glass-soft);
+}
+
+.more-menu button[data-danger] {
+  color: var(--danger);
+}
+
+.lib-ach .link-btn {
+  margin: 0;
+}
+
+.lib-ach-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -4px 0 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.lib-ach-progress .mini-bar {
+  max-width: 260px;
+}
+
+.ach-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 1180px) {
+  .ach-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .builder-tabs {
+    position: static;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }

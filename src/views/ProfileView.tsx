@@ -71,17 +71,7 @@ function MyProfile() {
         </div>
       </ProfileCard>
 
-      <section className="panel glass builder" aria-labelledby="builder-title">
-        <h2 id="builder-title">Montar o perfil</h2>
-        <div className="builder-grid">
-          <Slot title="Avatar" kind="avatar" tab="avatar" />
-          <Slot title="Moldura" kind="frame" tab="frame" none="Sem moldura" />
-          <Slot title="Efeito do avatar" kind="avatarFx" tab="fx" none="Nenhum" />
-          <Slot title="Estilo do nome" kind="nameStyle" tab="nameStyle" none="Normal" />
-          <Slot title="Banner" kind="banner" tab="banner" none="Degradê" wide />
-          <Slot title="Efeito do banner" kind="bannerFx" tab="fx" none="Nenhum" wide />
-        </div>
-      </section>
+      <Builder />
 
       <div className="profile-grid">
         <section className="panel glass">
@@ -163,33 +153,6 @@ function MyProfile() {
         </section>
       </div>
 
-      <section className="panel glass appearance" aria-labelledby="title-title">
-        <h2 id="title-title">Título</h2>
-        <p className="muted appearance-hint">Qualquer conquista liberada pode virar o título que aparece sob o seu apelido.</p>
-        <div className="titles" role="radiogroup" aria-label="Título">
-          <button type="button" role="radio" className="title-chip" aria-checked={!profile.title} onClick={() => setPatch({ title: undefined })}>
-            Sem título
-          </button>
-          {unlocked.map(([key, u]) => {
-            const d = describe(u);
-            return (
-              <button
-                key={key}
-                type="button"
-                role="radio"
-                className="title-chip"
-                data-tier={d.tier}
-                aria-checked={profile.title === key}
-                onClick={() => setPatch({ title: key })}
-                title={gameTitle(u.gameId)}
-              >
-                <AchievementIcon def={{ id: u.id, ...d }} unlocked pixel={d.pixel} size={22} />
-                {d.title}
-              </button>
-            );
-          })}
-        </div>
-      </section>
     </>
   );
 }
@@ -228,40 +191,120 @@ function NickEditor() {
   );
 }
 
-/** Uma peça do perfil: só os itens que o usuário tem, mais o atalho para a loja. */
-function Slot({ title, kind, tab, none, wide }: { title: string; kind: ItemKind; tab: ShopTab; none?: string; wide?: boolean }) {
+type Piece = { id: string; label: string; kind?: ItemKind; tab?: ShopTab; none?: string; wide?: boolean };
+
+/** Peças do perfil, na ordem das abas do editor. */
+const PIECES: Piece[] = [
+  { id: "avatar", label: "Avatar", kind: "avatar", tab: "avatar" },
+  { id: "frame", label: "Moldura", kind: "frame", tab: "frame", none: "Sem moldura" },
+  { id: "avatarFx", label: "Efeito do avatar", kind: "avatarFx", tab: "fx", none: "Nenhum" },
+  { id: "banner", label: "Banner", kind: "banner", tab: "banner", none: "Degradê", wide: true },
+  { id: "bannerFx", label: "Efeito do banner", kind: "bannerFx", tab: "fx", none: "Nenhum", wide: true },
+  { id: "nameStyle", label: "Estilo do nome", kind: "nameStyle", tab: "nameStyle", none: "Normal" },
+  { id: "title", label: "Título" },
+];
+
+/** Editor do perfil: uma aba por peça e as opções numa grade que quebra linha (nada escondido em rolagem). */
+function Builder() {
+  const { shop, owns, state, titleText } = useStore();
+  const equipped = useEquipped();
+  const [piece, setPiece] = useState("avatar");
+  const current = PIECES.find((p) => p.id === piece) ?? PIECES[0];
+
+  // o que está em uso em cada peça, para mostrar na aba
+  const using = (p: Piece) => {
+    if (p.id === "title") return titleText ?? "Sem título";
+    const on = shop.find((i) => i.kind === p.kind && owns(i.id) && equipped(i));
+    return on?.name ?? p.none ?? "";
+  };
+  const count = (p: Piece) => (p.kind ? shop.filter((i) => i.kind === p.kind && owns(i.id)).length : Object.keys(state.unlocks).length);
+
+  return (
+    <section className="panel glass builder" aria-labelledby="builder-title">
+      <h2 id="builder-title">Montar o perfil</h2>
+      <div className="builder-body">
+        <div className="builder-tabs" role="tablist" aria-label="Peças do perfil" aria-orientation="vertical">
+          {PIECES.map((p) => (
+            <button key={p.id} type="button" role="tab" aria-selected={piece === p.id} onClick={() => setPiece(p.id)}>
+              <span className="builder-tab-name">
+                {p.label}
+                <em>{count(p)}</em>
+              </span>
+              <span className="builder-tab-using">{using(p)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="builder-pane" role="tabpanel" aria-label={current.label}>
+          {current.kind ? <PieceOptions piece={current} /> : <TitleOptions />}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PieceOptions({ piece }: { piece: Piece }) {
   const { shop, owns, equip } = useStore();
   const equipped = useEquipped();
   const { go } = useNav();
+  const kind = piece.kind!;
   const mine = shop.filter((i) => i.kind === kind && owns(i.id));
   const total = shop.filter((i) => i.kind === kind).length;
   const anyOn = mine.some(equipped);
 
   return (
-    <div className="slot" data-wide={wide || undefined} data-kind={kind}>
-      <h3>
-        {title}
-        <span className="muted">
-          {mine.length}/{total}
-        </span>
-      </h3>
-      <div className="slot-row" role="radiogroup" aria-label={title}>
-        {none && (
+    <>
+      <p className="muted builder-hint">
+        {mine.length} de {total} na sua coleção. Passe o mouse para ver a animação.
+      </p>
+      <div className="builder-grid" data-wide={piece.wide || undefined} role="radiogroup" aria-label={piece.label}>
+        {piece.none && (
           <button type="button" role="radio" className="slot-tile slot-tile--none" aria-checked={!anyOn} onClick={() => equip(kind, undefined)}>
-            <span className="slot-art">{none}</span>
+            <span className="slot-art">{piece.none}</span>
           </button>
         )}
         {mine.map((it) => (
           <SlotTile key={it.id} it={it} on={equipped(it)} onPick={() => equip(kind, it.id)} />
         ))}
-        <button type="button" className="slot-tile slot-tile--shop" onClick={() => go("loja", { tab })} title="Ver mais na loja">
+        <button type="button" className="slot-tile slot-tile--shop" onClick={() => go("loja", { tab: piece.tab })} title="Ver mais na loja">
           <span className="slot-art">
-            <Storefront size={20} aria-hidden />
+            <Storefront size={22} aria-hidden />
           </span>
           <span className="slot-name">Mais na loja</span>
         </button>
       </div>
-    </div>
+    </>
+  );
+}
+
+/** Títulos: só o texto de cada conquista liberada, do mais recente para o mais antigo. */
+function TitleOptions() {
+  const { state, dispatch, describe, gameTitle } = useStore();
+  const current = state.profile.title;
+  const unlocked = Object.entries(state.unlocks).sort((a, b) => b[1].at - a[1].at);
+  const set = (title: string | undefined) => dispatch({ type: "profile", patch: { title } });
+  return (
+    <>
+      <p className="muted builder-hint">Qualquer conquista liberada pode virar o título que aparece sob o seu apelido.</p>
+      <div className="title-list" role="radiogroup" aria-label="Título">
+        <button type="button" role="radio" className="title-opt" aria-checked={!current} onClick={() => set(undefined)}>
+          Sem título
+        </button>
+        {unlocked.map(([key, u]) => (
+          <button
+            key={key}
+            type="button"
+            role="radio"
+            className="title-opt"
+            aria-checked={current === key}
+            onClick={() => set(key)}
+            title={gameTitle(u.gameId)}
+          >
+            {describe(u).title}
+          </button>
+        ))}
+      </div>
+      {!unlocked.length && <p className="muted">Libere conquistas para ganhar títulos.</p>}
+    </>
   );
 }
 
@@ -279,7 +322,7 @@ function SlotTile({ it, on, onPick }: { it: ShopItem; on: boolean; onPick: () =>
       onMouseLeave={() => setHover(false)}
     >
       <span className="slot-art">
-        <ItemPreview it={it} live={hover} size={52} />
+        <ItemPreview it={it} live={hover} size={64} />
       </span>
       <span className="slot-name">{it.name}</span>
     </button>
