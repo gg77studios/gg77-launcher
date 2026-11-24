@@ -14,7 +14,7 @@ const CORRE_BANNERS = "/games/corre/banners/";
 export const CATALOG: Game[] = [
   {
     id: "idle-legends",
-    title: "Idle Legends",
+    title: "Legendforge",
     // só roda instalado pelo launcher (desde a virada de 2026-11-21 não existe mais versão web)
     url: "",
     package: { manifest: "https://github.com/gg77studios/gg77-builds/releases/download/catalog/idle-legends.json" },
@@ -76,7 +76,7 @@ export const CATALOG: Game[] = [
   },
   {
     id: "tribos",
-    title: "Tribos",
+    title: "Clanfall",
     // só roda instalado pelo launcher; o servidor exige a conta GG77 (token do hub)
     url: "",
     package: { manifest: "https://github.com/gg77studios/gg77-builds/releases/download/catalog/tribos.json" },
@@ -131,7 +131,7 @@ export const CATALOG: Game[] = [
   },
   {
     id: "corre",
-    title: "Corre",
+    title: "No Corre",
     // jogo só de cliente (sem servidor): o save fica no aparelho (localStorage "corre_save_v2")
     url: "",
     package: { manifest: "https://github.com/gg77studios/gg77-builds/releases/download/catalog/corre.json" },
