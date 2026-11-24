@@ -188,7 +188,6 @@ export const CATALOG: Game[] = [
       { id: "salinha", title: "Saiu da garagem", description: "Mude pra uma salinha no bairro.", tier: "rara" },
       { id: "me", title: "Agora é ME", description: "Vire ME no Simples Nacional.", tier: "rara" },
       { id: "mes-no-verde", title: "Mês no verde", description: "Feche um mês com lucro.", tier: "rara" },
-      { id: "erp", title: "Gestão de verdade", description: "Compre o sistema de gestão (ERP).", tier: "rara" },
       { id: "centro", title: "Loja no centro", description: "Abra a loja no centro.", tier: "épica" },
       { id: "mil", title: "Mil clientes", description: "Atenda 1.000 clientes.", tier: "épica" },
       { id: "influencer", title: "Influencer do bairro", description: "Chegue a 500 seguidores.", tier: "épica", hidden: true },
