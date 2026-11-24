@@ -148,16 +148,16 @@ export function buildShop(games: Game[], defsFor: (gameId: string) => Achievemen
     { gameId: LAUNCHER_ID, list: LAUNCHER_BANNERS },
     ...games.map((g) => ({ gameId: g.id, list: g.banners ?? [] })),
   ].flatMap(({ gameId, list }) =>
-    list.map((b) => {
+    // banner sem imagem (o "Padrão" do launcher) é o degradê, que já é a opção "sem banner"
+    list.filter((b) => b.image).map((b) => {
       const tier = b.unlock ? defsFor(gameId).find((d) => d.id === b.unlock)?.tier : undefined;
       const rarity: Rarity = b.rarity ?? tier ?? "rara";
-      const free = gameId === LAUNCHER_ID && b.id === "padrao";
       return {
         id: `banner:${gameId}:${b.id}`,
         kind: "banner" as const,
         name: b.title,
         rarity,
-        price: free ? 0 : RARITY_PRICE[rarity],
+        price: RARITY_PRICE[rarity],
         image: b.image,
         gameId,
       };

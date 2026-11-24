@@ -257,9 +257,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const catalog = useMemo<Game[]>(() => {
     if (!remote) return CATALOG;
-    // o remoto substitui o embutido jogo a jogo; jogos só do embutido continuam
+    // o remoto substitui o embutido jogo a jogo; jogos só do embutido continuam. Campo que um
+    // catálogo remoto mais antigo não conhece (ex. avatars) vem do embutido.
     const ids = new Set(remote.map((g) => g.id));
-    return [...remote, ...CATALOG.filter((g) => !ids.has(g.id))];
+    return [...remote.map((g) => ({ ...CATALOG.find((c) => c.id === g.id), ...g })), ...CATALOG.filter((g) => !ids.has(g.id))];
   }, [remote]);
 
   const games = useMemo<Game[]>(

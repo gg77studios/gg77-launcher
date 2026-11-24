@@ -1,6 +1,6 @@
 import { Coins, SquaresFour, Storefront, Trophy, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "./components/Avatar";
 import { LauncherUpdate } from "./components/LauncherUpdate";
 import { Nick } from "./components/ProfileCard";
@@ -48,6 +48,12 @@ export function App() {
     setView(v);
   }, []);
   const nav = useMemo(() => ({ view, go, shopIntent }), [view, go, shopIntent]);
+
+  // cada tela abre do topo (a área principal é um só rolador para todas)
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+  }, [view]);
 
   // papel de parede: a arte do jogo selecionado (ou o fundo escolhido); no perfil, o banner do perfil
   const chosen = item(settings.wallpaper);
@@ -145,7 +151,7 @@ export function App() {
               </button>
             </aside>
 
-            <main className="main">
+            <main className="main" ref={mainRef}>
               {!ready ? (
                 <div className="splash" aria-busy="true" />
               ) : (

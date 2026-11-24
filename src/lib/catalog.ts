@@ -9,6 +9,9 @@ const TRIBOS_ICONS = "/games/tribos/achievements/";
 const TRIBOS_BANNERS = "/games/tribos/banners/";
 const CORRE_ICONS = "/games/corre/achievements/";
 const CORRE_BANNERS = "/games/corre/banners/";
+const IDLE_AVATARS = "/games/idle-legends/avatars/";
+const TRIBOS_AVATARS = "/games/tribos/avatars/";
+const CORRE_AVATARS = "/games/corre/avatars/";
 
 /** Jogos que já vêm no launcher. Para adicionar um novo jogo do grupo, inclua aqui. */
 export const CATALOG: Game[] = [
@@ -59,6 +62,21 @@ export const CATALOG: Game[] = [
       { match: ".", icon: `${IDLE_ICONS}extra-default.png` },
     ],
     // banners de perfil com a arte do próprio jogo, vendidos na loja (`unlock` é legado: migração e raridade)
+    // avatares da loja: heróis e inimigos do próprio jogo (pixel art); recortes de scripts/make-avatars.py
+    avatars: [
+      { id: "guerreiro", name: "Guerreiro", image: `${IDLE_AVATARS}guerreiro.png`, rarity: "comum" },
+      { id: "ladina", name: "Ladina", image: `${IDLE_AVATARS}ladina.png`, rarity: "comum" },
+      { id: "goblin", name: "Goblin", image: `${IDLE_AVATARS}goblin.png`, rarity: "comum" },
+      { id: "lobo-das-neves", name: "Lobo das neves", image: `${IDLE_AVATARS}lobo-das-neves.png`, rarity: "comum" },
+      { id: "kitsune", name: "Kitsune", image: `${IDLE_AVATARS}kitsune.png`, rarity: "rara" },
+      { id: "yurei", name: "Yurei", image: `${IDLE_AVATARS}yurei.png`, rarity: "rara" },
+      { id: "apparition", name: "Aparição", image: `${IDLE_AVATARS}apparition.png`, rarity: "rara" },
+      { id: "jarl-de-gelo", name: "Jarl de gelo", image: `${IDLE_AVATARS}jarl-de-gelo.png`, rarity: "rara" },
+      { id: "valquiria-caida", name: "Valquíria caída", image: `${IDLE_AVATARS}valquiria-caida.png`, rarity: "épica" },
+      { id: "oni-shogun", name: "Oni shogun", image: `${IDLE_AVATARS}oni-shogun.png`, rarity: "épica" },
+      { id: "lich-lord", name: "Lorde lich", image: `${IDLE_AVATARS}lich-lord.png`, rarity: "épica" },
+      { id: "ember-dragon", name: "Dragão de brasa", image: `${IDLE_AVATARS}ember-dragon.png`, rarity: "lendária" },
+    ],
     banners: [
       { id: "floresta", title: "Floresta Sombria", image: "/games/idle-legends/banners/floresta.jpg", unlock: "primeira-vitoria" },
       { id: "minas", title: "Minas", image: "/games/idle-legends/banners/minas.jpg", unlock: "nivel-10" },
@@ -115,6 +133,18 @@ export const CATALOG: Game[] = [
       },
     ]),
     // banners de perfil pintados no Gemini, cada um liberado por uma conquista ligada a ele
+    // avatares da loja: guerreiros dos clãs (folhas do Gemini do jogo); recortes de scripts/make-avatars.py
+    avatars: [
+      { id: "lanceiro", name: "Lanceiro", image: `${TRIBOS_AVATARS}lanceiro.jpg`, rarity: "comum" },
+      { id: "musgo", name: "Guarda do musgo", image: `${TRIBOS_AVATARS}musgo.jpg`, rarity: "comum" },
+      { id: "sentinela", name: "Sentinela", image: `${TRIBOS_AVATARS}sentinela.jpg`, rarity: "comum" },
+      { id: "lobo", name: "Pele de lobo", image: `${TRIBOS_AVATARS}lobo.jpg`, rarity: "rara" },
+      { id: "saqueador", name: "Saqueador", image: `${TRIBOS_AVATARS}saqueador.jpg`, rarity: "rara" },
+      { id: "geada", name: "Arqueira da geada", image: `${TRIBOS_AVATARS}geada.jpg`, rarity: "rara" },
+      { id: "sacerdote", name: "Sacerdote do sol", image: `${TRIBOS_AVATARS}sacerdote.jpg`, rarity: "épica" },
+      { id: "corvo", name: "Mestre dos corvos", image: `${TRIBOS_AVATARS}corvo.jpg`, rarity: "épica" },
+      { id: "sombra", name: "Sombra", image: `${TRIBOS_AVATARS}sombra.jpg`, rarity: "épica" },
+    ],
     banners: [
       { id: "vale", title: "Vale do rio", image: `${TRIBOS_BANNERS}vale.jpg`, unlock: "primeira_vitoria" },
       { id: "ruinas", title: "Ruínas na névoa", image: `${TRIBOS_BANNERS}ruinas.jpg`, unlock: "saqueador_de_ruinas" },
@@ -165,6 +195,11 @@ export const CATALOG: Game[] = [
     ]),
     iconRules: [{ match: ".", icon: `${CORRE_ICONS}extra-default.png` }],
     // banners de perfil com a arte do jogo (Gemini)
+    // avatares da loja: os personagens do jogo (sprites); recortes de scripts/make-avatars.py
+    avatars: [
+      { id: "cozinheiro", name: "Cozinheiro", image: `${CORRE_AVATARS}cozinheiro.png`, rarity: "comum" },
+      { id: "cliente", name: "Cliente", image: `${CORRE_AVATARS}cliente.png`, rarity: "comum" },
+    ],
     banners: [
       { id: "esquina", title: "Esquina ao entardecer", image: `${CORRE_BANNERS}esquina.jpg`, unlock: "primeiro-dia" },
       { id: "balcao", title: "Atrás do balcão", image: `${CORRE_BANNERS}balcao.jpg`, unlock: "mes-no-verde" },
@@ -201,7 +236,20 @@ export const LAUNCHER_ACHIEVEMENTS: AchievementDef[] = withIcons("/games/launche
 ]);
 
 /** Avatares prontos do launcher (folha gerada no Gemini). Os seis primeiros vêm com a conta. */
-export const LAUNCHER_AVATARS: AvatarDef[] = [];
+export const LAUNCHER_AVATARS: AvatarDef[] = [
+  { id: "cavaleira", name: "Cavaleira", image: "/games/launcher/avatars/cavaleira.jpg", rarity: "comum" },
+  { id: "mago", name: "Mago", image: "/games/launcher/avatars/mago.jpg", rarity: "comum" },
+  { id: "bardo", name: "Bardo", image: "/games/launcher/avatars/bardo.jpg", rarity: "comum" },
+  { id: "arqueira", name: "Arqueira élfica", image: "/games/launcher/avatars/arqueira.jpg", rarity: "comum" },
+  { id: "taverneiro", name: "Taverneiro", image: "/games/launcher/avatars/taverneiro.jpg", rarity: "comum" },
+  { id: "ferreira", name: "Ferreira anã", image: "/games/launcher/avatars/ferreira.jpg", rarity: "comum" },
+  { id: "ladino", name: "Ladino", image: "/games/launcher/avatars/ladino.jpg", rarity: "rara" },
+  { id: "cleriga", name: "Clériga", image: "/games/launcher/avatars/cleriga.jpg", rarity: "rara" },
+  { id: "orc", name: "Orc camarada", image: "/games/launcher/avatars/orc.jpg", rarity: "rara" },
+  { id: "gato", name: "Gato aventureiro", image: "/games/launcher/avatars/gato.jpg", rarity: "épica" },
+  { id: "golem", name: "Golem de cristal", image: "/games/launcher/avatars/golem.jpg", rarity: "épica" },
+  { id: "dragao", name: "Dragãozinho", image: "/games/launcher/avatars/dragao.jpg", rarity: "lendária" },
+];
 
 export const TIER_XP: Record<Tier, number> = { comum: 10, rara: 25, épica: 50 };
 

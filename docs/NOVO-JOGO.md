@@ -224,11 +224,21 @@ primeira abertura e offline.
     { id: "primeira-vitoria", title: "...", description: "...", tier: "comum", icon: "/games/meu-jogo/achievements/primeira-vitoria.png" },
   ],
   iconRules: [{ match: ".", icon: "/games/meu-jogo/achievements/extra-default.png" }], // conquistas fora da lista
-  banners: [{ id: "x", title: "...", image: "/games/meu-jogo/banners/x.jpg", unlock: "primeira-vitoria" }],
+  // itens da loja do launcher (raridade define o preço: comum 30, rara 80, épica 180, lendária 350 fichas)
+  banners: [{ id: "x", title: "...", image: "/games/meu-jogo/banners/x.jpg", rarity: "rara" }],
+  avatars: [{ id: "heroi", name: "Herói", image: "/games/meu-jogo/avatars/heroi.png", rarity: "comum" }],
 }
 ```
 
-Ícones de conquista: 192x192 PNG. Banners de perfil: 1500x500 JPG (3:1), cada um liberado por uma conquista.
+Ícones de conquista: 192x192 PNG. Banners de perfil: 1500x500 JPG (3:1). Avatares: 256x256, retrato de
+busto com o rosto no centro (o launcher recorta em círculo e põe moldura por cima; `pixelArt: true` vale
+para eles também).
+
+Banners e avatares não são liberados por conquista: entram na **Loja** do launcher e são comprados com
+fichas, que o jogador ganha com conquistas (de qualquer jogo), horas jogadas e níveis. Conquista boa
+continua importante, porque vira ficha e XP. O campo antigo `unlock` do banner ainda é aceito: serve só
+para sugerir a raridade (a da conquista) e para dar o banner de graça a quem já tinha liberado antes da 0.6.
+`scripts/make-avatars.py` mostra como os avatares dos jogos atuais foram recortados da arte de cada um.
 
 ## 8. Testar antes de publicar
 
@@ -256,6 +266,7 @@ instale o jogo pela biblioteca.
 - [ ] Servidor com CORS para `gg77game://localhost` e `http://gg77game.localhost`
 - [ ] Conquistas enviadas pelo SDK e cadastradas no catálogo com ícones
 - [ ] Capa, banner e ícone nos tamanhos acima
+- [ ] Banners de perfil e avatares para a loja (opcional, mas é o que os amigos colecionam)
 - [ ] Pacote testado com o autoteste e no launcher de verdade
 - [ ] Publicado no `gg77-builds` e jogo no catálogo
 
