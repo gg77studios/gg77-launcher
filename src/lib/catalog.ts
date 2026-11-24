@@ -191,6 +191,12 @@ export const CATALOG: Game[] = [
       { id: "centro", title: "Loja no centro", description: "Abra a loja no centro.", tier: "épica" },
       { id: "mil", title: "Mil clientes", description: "Atenda 1.000 clientes.", tier: "épica" },
       { id: "influencer", title: "Influencer do bairro", description: "Chegue a 500 seguidores.", tier: "épica", hidden: true },
+      // 0.6
+      { id: "fiscal-aprovou", title: "Loja aprovada", description: "Passe pela vigilância sanitária sem multa.", tier: "comum" },
+      { id: "cardapio6", title: "Cardápio de respeito", description: "Tenha 6 itens no cardápio.", tier: "rara" },
+      { id: "fregueses", title: "Freguesia", description: "Tenha 3 fregueses fixos.", tier: "rara" },
+      { id: "influencer-aprovou", title: "Aprovado pela influencer", description: "Atenda bem a influencer do bairro.", tier: "rara" },
+      { id: "avenida", title: "Virou rede", description: "Abra a franquia na avenida.", tier: "épica" },
     ]),
     iconRules: [{ match: ".", icon: `${CORRE_ICONS}extra-default.png` }],
     // banners de perfil com a arte do jogo (Gemini)
