@@ -195,6 +195,7 @@ export async function fetchRemoteCatalog(): Promise<Game[] | null> {
       achievements: g.achievements.map((a) => ({ ...a, icon: resolveAsset(a.icon) })),
       iconRules: g.iconRules?.map((r) => ({ ...r, icon: resolveAsset(r.icon) ?? r.icon })),
       banners: g.banners?.map((b) => ({ ...b, image: resolveAsset(b.image) ?? b.image })),
+      avatars: g.avatars?.map((a) => ({ ...a, image: resolveAsset(a.image) ?? a.image })),
     }));
   } catch {
     return null;
