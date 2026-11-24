@@ -111,7 +111,7 @@ export function LauncherSettings() {
       <section className="panel glass">
         <h2>Fundo</h2>
         <Segmented
-          label="O que fica atrás das telas"
+          label="Fundo das outras telas (a Biblioteca sempre mostra a arte do jogo)"
           value={s.ambient ? "jogo" : "fundo"}
           options={[
             ["jogo", "Arte do jogo"],

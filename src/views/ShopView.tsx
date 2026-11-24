@@ -5,7 +5,7 @@ import { ItemPreview, WallpaperSwatch, wearing } from "../components/ItemPreview
 import { ProfileCard } from "../components/ProfileCard";
 import { LAUNCHER_ID } from "../lib/catalog";
 import { type ShopTab, tabOf, useNav } from "../lib/nav";
-import { COINS_PER_HOUR, COINS_PER_LEVEL, dailyFeatured, fmtCoins, itemValue, LIGHT_THEMES, RARITIES } from "../lib/shop";
+import { COINS_PER_HOUR, COINS_PER_LEVEL, COLLECTIONS, dailyFeatured, fmtCoins, itemValue, LIGHT_THEMES, RARITIES } from "../lib/shop";
 import { useStore } from "../lib/state";
 import type { ItemKind, Rarity, ShopItem } from "../lib/types";
 
@@ -96,16 +96,18 @@ export function ShopView() {
   // sorteio do dia entre o que a pessoa ainda não tem
   const featured = useMemo(() => dailyFeatured(shop.filter((i) => !owns(i.id))), [shop, owns]);
   const inTab = shop.filter((i) => tabOf(i.kind) === tab);
-  const hasGames = tab === "avatar" || tab === "banner";
-  const gameIds = hasGames ? [...new Set(inTab.map((i) => i.gameId).filter((g): g is string => !!g))] : [];
+  // origem do item para o filtro: a coleção temática (Sandbox) ou o jogo de onde vem a arte
+  const sourceOf = (i: ShopItem) => (i.collection ? `col:${i.collection}` : i.gameId);
+  const sources = [...new Set(inTab.map(sourceOf).filter((g): g is string => !!g))];
   const list = inTab
     .filter((i) => rarity === "todas" || i.rarity === rarity)
     .filter((i) => !hideOwned || !owns(i.id))
-    .filter((i) => !hasGames || game === "todos" || i.gameId === game)
+    .filter((i) => game === "todos" || sourceOf(i) === game)
     .sort((a, b) => Number(owns(a.id)) - Number(owns(b.id)) || RANK[a.rarity] - RANK[b.rarity] || a.price - b.price);
 
   const owned = inTab.filter((i) => owns(i.id)).length;
-  const label = (id: string) => (id === LAUNCHER_ID ? "GG77" : gameTitle(id));
+  const label = (id: string) =>
+    id.startsWith("col:") ? (COLLECTIONS[id.slice(4)] ?? id.slice(4)) : id === LAUNCHER_ID ? "GG77" : gameTitle(id);
 
   return (
     <div className="shop">
@@ -204,12 +206,12 @@ export function ShopView() {
             </button>
           ))}
         </div>
-        {hasGames && gameIds.length > 1 && (
-          <div className="chips" role="radiogroup" aria-label="Jogo">
+        {(sources.length > 1 || (sources.length === 1 && sources[0].startsWith("col:"))) && (
+          <div className="chips" role="radiogroup" aria-label="Origem">
             <button type="button" role="radio" className="chip" aria-checked={game === "todos"} onClick={() => setGame("todos")}>
-              Todos os jogos
+              Tudo
             </button>
-            {gameIds.map((g) => (
+            {sources.map((g) => (
               <button key={g} type="button" role="radio" className="chip" aria-checked={game === g} onClick={() => setGame(g)}>
                 {label(g)}
               </button>
@@ -234,7 +236,13 @@ export function ShopView() {
         <p className="muted shop-empty">{hideOwned ? "Você já tem tudo daqui." : "Nada com esse filtro."}</p>
       )}
 
-      {open && <TryOn it={open} onClose={() => setOpen(null)} gameName={open.gameId ? label(open.gameId) : undefined} />}
+      {open && (
+        <TryOn
+          it={open}
+          onClose={() => setOpen(null)}
+          gameName={open.collection ? `Coleção ${label(`col:${open.collection}`)}` : open.gameId ? label(open.gameId) : undefined}
+        />
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { Check, CloudCheck, CloudSlash, GameController, SignOut, UserPlus, X } f
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar } from "../components/Avatar";
 import { ProfileCard } from "../components/ProfileCard";
-import { TIER_XP, XP_PER_LEVEL } from "../lib/catalog";
+import { LAUNCHER_ID, TIER_XP, XP_PER_LEVEL } from "../lib/catalog";
 import { useAccount } from "../lib/account";
 import { fmtDuration, fmtRelative } from "../lib/format";
 import { type FriendCard, hub, HubError, type UserPage } from "../lib/hub";
@@ -202,12 +202,14 @@ function Friends() {
 }
 
 function FriendProfile({ page, onClose, onRemove }: { page: UserPage; onClose: () => void; onRemove: () => void }) {
-  const { gameTitle, describe } = useStore();
+  const { gameTitle, describe, games } = useStore();
+  // só conquistas de jogos conhecidos (sobra de teste fica de fora, como no próprio perfil)
+  const achievements = page.achievements.filter((a) => a.gameId === LAUNCHER_ID || games.some((g) => g.id === a.gameId));
   const byGame = new Map<string, number>();
-  for (const a of page.achievements) byGame.set(a.gameId, (byGame.get(a.gameId) ?? 0) + 1);
-  const recent = [...page.achievements].sort((a, b) => b.at - a.at).slice(0, 6);
+  for (const a of achievements) byGame.set(a.gameId, (byGame.get(a.gameId) ?? 0) + 1);
+  const recent = [...achievements].sort((a, b) => b.at - a.at).slice(0, 6);
   const profile = asProfile(page.profile, page.nickname);
-  const friendXp = page.achievements.reduce((a, u) => a + TIER_XP[describe(u).tier], 0);
+  const friendXp = achievements.reduce((a, u) => a + TIER_XP[describe(u).tier], 0);
   const friendLevel = Math.floor(friendXp / XP_PER_LEVEL) + 1;
   const titleKey = profile.title?.split(":");
   const friendTitle = titleKey && titleKey.length >= 2 ? describe({ gameId: titleKey[0], id: titleKey.slice(1).join(":"), at: 0 }).title : undefined;

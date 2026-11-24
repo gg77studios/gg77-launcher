@@ -12,7 +12,7 @@ const at = (r: number, deg: number) => [50 + r * Math.cos(rad(deg)), 50 + r * Ma
 const steps = (n: number, from = 0, span = 360) => Array.from({ length: n }, (_, i) => from + (i * span) / n);
 
 /** Molduras quadradas: o rosto do avatar vira um quadrado de cantos curtos. */
-export const SQUARE_FRAMES = new Set(["pixel", "pixel-coracao"]);
+export const SQUARE_FRAMES = new Set(["pixel", "pixel-coracao", "bloco-grama", "minerio", "portal"]);
 
 const PIXEL_OUTER = "M8 0H92V4H96V8H100V92H96V96H92V100H8V96H4V92H0V8H4V4H8Z";
 const PIXEL_INNER = "M12 8H88V12H92V88H88V92H12V88H8V12H12Z";
@@ -28,6 +28,30 @@ const RUNES = [
   "M-2 -3V3M2 -3V3M-2 0H2",
 ];
 const SPARK = "M0 -3L.8 -.8L3 0L.8 .8L0 3L-.8 .8L-3 0L-.8 -.8Z";
+
+/** Pseudoaleatório fixo (mesmo desenho sempre). */
+const rnd = (i: number) => {
+  const x = Math.sin(i * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+/** Casas de 4x4 que caem dentro do aro quadrado (borda de 8 unidades). */
+const RING_CELLS = (() => {
+  const out: Array<[number, number]> = [];
+  for (let y = 0; y < 100; y += 4) for (let x = 0; x < 100; x += 4) if (x < 8 || x >= 92 || y < 8 || y >= 92) out.push([x, y]);
+  return out;
+})();
+
+/** Aro quadrado em blocos de pixel, cada casa com uma cor da paleta (textura de bloco). */
+function BlockRing({ palette, seed }: { palette: string[]; seed: number }) {
+  return (
+    <g shapeRendering="crispEdges">
+      {RING_CELLS.map(([x, y], i) => (
+        <rect key={i} x={x} y={y} width={4} height={4} fill={palette[Math.floor(rnd(i + seed) * palette.length)]} />
+      ))}
+    </g>
+  );
+}
 
 function Gem({ x, y, r, fill }: { x: number; y: number; r: number; fill: string }) {
   return (
@@ -211,6 +235,62 @@ export function FrameArt({ frame }: { frame: string }) {
               <rect x={92} y={92} width={4} height={4} fill="#fff6c8" className="fr-anim fr-twinkle" style={{ animationDelay: "0.9s" }} />
             </>
           )}
+        </g>
+      );
+      break;
+    }
+    case "bloco-grama": {
+      const drips = Array.from({ length: 25 }, (_, i) => 1 + Math.floor(rnd(i + 7) * 3));
+      body = (
+        <g shapeRendering="crispEdges">
+          <BlockRing palette={["#6b4a2b", "#7d5732", "#5a3d22", "#8a6239", "#6b4a2b"]} seed={3} />
+          {/* grama em cima, escorrendo pelas laterais */}
+          <rect x={0} y={0} width={100} height={4} fill="#7fd05a" />
+          {drips.map((d, i) => (
+            <rect key={i} x={i * 4} y={4} width={4} height={d * 2} fill={i % 3 === 0 ? "#5fae3e" : "#4e9a32"} />
+          ))}
+          <rect x={0} y={0} width={4} height={14} fill="#4e9a32" />
+          <rect x={96} y={0} width={4} height={12} fill="#4e9a32" />
+          <rect x={8} y={0} width={4} height={2} fill="#a6e77f" />
+          <rect x={60} y={0} width={8} height={2} fill="#a6e77f" />
+        </g>
+      );
+      break;
+    }
+    case "minerio": {
+      const ores = ["#4fe3e0", "#f2c94c", "#e0453c", "#3ddc84"];
+      const spots = RING_CELLS.filter((_, i) => rnd(i + 31) > 0.86);
+      body = (
+        <g shapeRendering="crispEdges">
+          <BlockRing palette={["#7d7d7d", "#6a6a6a", "#8f8f8f", "#5f5f5f"]} seed={11} />
+          {spots.map(([x, y], i) => (
+            <g key={i} className={i % 3 === 0 ? "fr-anim fr-twinkle" : undefined} style={{ animationDelay: `${(i * 0.37) % 2.4}s` }}>
+              <rect x={x + 1} y={y + 1} width={2} height={2} fill={ores[i % ores.length]} />
+              <rect x={x} y={y + 2} width={1} height={1} fill={ores[i % ores.length]} />
+            </g>
+          ))}
+        </g>
+      );
+      break;
+    }
+    case "portal": {
+      const sparks = RING_CELLS.filter((_, i) => rnd(i + 53) > 0.8);
+      body = (
+        <g shapeRendering="crispEdges">
+          <BlockRing palette={["#140a26", "#1d1035", "#2a1748", "#0f0820"]} seed={23} />
+          <path d={PIXEL_INNER} fill="none" stroke="#b57bff" strokeWidth={1.4} opacity={0.9} />
+          {sparks.map(([x, y], i) => (
+            <rect
+              key={i}
+              className="fr-anim fr-twinkle"
+              x={x + 1}
+              y={y + 1}
+              width={2}
+              height={2}
+              fill={i % 2 ? "#c48bff" : "#7d3cff"}
+              style={{ animationDelay: `${(i * 0.29) % 2.4}s` }}
+            />
+          ))}
         </g>
       );
       break;

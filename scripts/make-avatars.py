@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
-"""Gera os avatares prontos da loja (256x256) a partir da arte dos jogos.
+"""Gera os avatares prontos da loja (256x256) e banners extras a partir da arte dos jogos e do Gemini.
 
-    python3 scripts/make-avatars.py <idle-dir> <tribos-art-dir> <corre-chars-dir> [launcher-sheet]
+    python3 scripts/make-avatars.py --idle DIR --tribos DIR --corre DIR --launcher SHEET \
+        --indie-avatars SHEET --indie-banners SHEET SHEET
 
-- idle-dir: ícones de client/src/assets do Legendforge, baixados com o nome
+Cada opção é independente: passe só o que for refazer.
+
+- --idle: ícones de client/src/assets do Legendforge, baixados com o nome
   "<pasta>_<sub>_<arquivo>" (enemies_icons_kitsune.png, heroes_icons_warrior_icon.png).
-- tribos-art-dir: art/gemini do Clanfall (folhas clans_units_a_v3.jpg e _b_v3.jpg, fundo magenta).
-- corre-chars-dir: client/src/assets/chars do No Corre (player.png e cliente.png, 9x3 quadros de 40 px).
+- --tribos: art/gemini do Clanfall (folhas clans_units_a_v3.jpg e _b_v3.jpg, fundo magenta).
+- --corre: client/src/assets/chars do No Corre (player.png e cliente.png, 9x3 quadros de 40 px).
 
-- launcher-sheet (opcional): folha do Gemini com os 12 retratos do launcher, grade 4x3 sobre magenta,
+- --launcher: folha do Gemini com os 12 retratos do launcher, grade 4x3 sobre magenta,
   na ordem de LAUNCHER_NAMES.
+- --indie-avatars: folha do Gemini com 12 retratos no estilo sandbox (voxel e pixel), grade 4x3,
+  na ordem de INDIE_NAMES. Vão para o launcher, como os outros avatares dele.
+- --indie-banners: folhas do Gemini com duas faixas panorâmicas empilhadas sobre magenta,
+  na ordem de INDIE_BANNERS; cada faixa vira um banner 1500x500 (3:1, corte central).
 
-Saída em public/games/<jogo>/avatars/. Precisa de Pillow.
+Saída em public/games/<jogo>/avatars/ (e banners/ para os banners). Precisa de Pillow.
 """
 import math
 import os
@@ -148,8 +155,8 @@ def runs(values, threshold=0.25, min_len=30):
     return [r for r in out if r[1] - r[0] > min_len]
 
 
-def launcher(sheet_path):
-    """Acha a grade pelos vãos magenta e corta cada retrato no quadrado central."""
+def grid(sheet_path):
+    """Acha as células de uma folha pelos vãos magenta: lista de (colunas, linhas) em pixels."""
     im = Image.open(sheet_path).convert("RGB")
     w, h = im.size
     px = im.load()
@@ -159,21 +166,66 @@ def launcher(sheet_path):
 
     cols = runs([sum(not mag(px[x, y]) for y in range(0, h, 4)) / (h / 4) for x in range(w)])
     rows = runs([sum(not mag(px[x, y]) for x in range(0, w, 4)) / (w / 4) for y in range(h)])
-    tiles = [(c, r) for r in rows for c in cols]
-    if len(tiles) != len(LAUNCHER_NAMES):
-        sys.exit(f"esperava {len(LAUNCHER_NAMES)} retratos, achei {len(tiles)}")
-    for (c, r), name in zip(tiles, LAUNCHER_NAMES):
+    return im, [(c, r) for r in rows for c in cols]
+
+
+def portraits(sheet_path, names, game):
+    """Corta cada célula no quadrado central (6% de folga para não pegar o magenta)."""
+    im, tiles = grid(sheet_path)
+    if len(tiles) != len(names):
+        sys.exit(f"{sheet_path}: esperava {len(names)} retratos, achei {len(tiles)}")
+    for (c, r), name in zip(tiles, names):
         side = int(min(c[1] - c[0], r[1] - r[0]) * 0.94)
         cx, cy = (c[0] + c[1]) // 2, (r[0] + r[1]) // 2
         crop = im.crop((cx - side // 2, cy - side // 2, cx + side // 2, cy + side // 2)).resize((SIZE, SIZE), Image.LANCZOS)
-        save(crop, "launcher", name, "jpg")
+        save(crop, game, name, "jpg")
+
+
+def launcher(sheet_path):
+    portraits(sheet_path, LAUNCHER_NAMES, "launcher")
+
+
+INDIE_NAMES = ["minerador", "aldea", "cavaleiro-cristal", "esqueleto", "abelha", "lobo", "explorador", "slime", "mago-estrelado", "fantasma", "cogumelo", "fada"]
+INDIE_BANNERS = ["mundo-blocos", "caverna-cristais", "ilhas-flutuantes", "vila-neve"]
+
+
+def indie_banners(sheets):
+    names = iter(INDIE_BANNERS)
+    for sheet in sheets:
+        im, tiles = grid(sheet)
+        for c, r in tiles:
+            name = next(names)
+            # faixa ~3,7:1 vira 3:1 cortando as laterais; 4% de folga contra o magenta
+            h = int((r[1] - r[0]) * 0.96)
+            w = h * 3
+            cx, cy = (c[0] + c[1]) // 2, (r[0] + r[1]) // 2
+            crop = im.crop((cx - w // 2, cy - h // 2, cx + w // 2, cy + h // 2)).resize((1500, 500), Image.LANCZOS)
+            os.makedirs(os.path.join(OUT, "launcher", "banners"), exist_ok=True)
+            path = os.path.join(OUT, "launcher", "banners", f"{name}.jpg")
+            crop.save(path, quality=86, optimize=True, progressive=True)
+            print(path)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (4, 5):
-        sys.exit(__doc__)
-    idle(sys.argv[1])
-    tribos(sys.argv[2])
-    corre(sys.argv[3])
-    if len(sys.argv) == 5:
-        launcher(sys.argv[4])
+    import argparse
+
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--idle")
+    ap.add_argument("--tribos")
+    ap.add_argument("--corre")
+    ap.add_argument("--launcher")
+    ap.add_argument("--indie-avatars")
+    ap.add_argument("--indie-banners", nargs="+")
+    args = ap.parse_args()
+    if args.idle:
+        idle(args.idle)
+    if args.tribos:
+        tribos(args.tribos)
+    if args.corre:
+        corre(args.corre)
+    if args.launcher:
+        launcher(args.launcher)
+    if args.indie_avatars:
+        portraits(args.indie_avatars, INDIE_NAMES, "launcher")
+    if args.indie_banners:
+        indie_banners(args.indie_banners)

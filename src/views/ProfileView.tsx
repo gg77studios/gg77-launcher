@@ -33,7 +33,7 @@ export function ProfileView() {
 }
 
 function MyProfile() {
-  const { state, dispatch, games, describe, gameTitle, level, xp, titleText, wallet } = useStore();
+  const { state, dispatch, games, describe, gameTitle, level, xp, titleText, wallet, unlocks } = useStore();
   const { go } = useNav();
   const { profile } = state;
   const [picking, setPicking] = useState(false);
@@ -43,7 +43,7 @@ function MyProfile() {
     const top = Object.entries(state.stats).sort((a, b) => b[1].seconds - a[1].seconds)[0];
     return top && top[1].seconds > 0 ? gameTitle(top[0]) : "nenhum ainda";
   }, [state.stats, gameTitle]);
-  const unlocked = Object.entries(state.unlocks).sort((a, b) => b[1].at - a[1].at);
+  const unlocked = Object.entries(unlocks).sort((a, b) => b[1].at - a[1].at);
 
   const setPatch = (patch: Partial<typeof profile>) => dispatch({ type: "profile", patch });
 
@@ -114,7 +114,7 @@ function MyProfile() {
           <div className="showcase">
             {Array.from({ length: MAX_SHOWCASE }, (_, i) => {
               const key = profile.showcase[i];
-              const u = key ? state.unlocks[key] : undefined;
+              const u = key ? unlocks[key] : undefined;
               if (!u) {
                 return (
                   <button key={i} type="button" className="showcase-slot" onClick={() => setPicking(true)}>
@@ -206,7 +206,7 @@ const PIECES: Piece[] = [
 
 /** Editor do perfil: uma aba por peça e as opções numa grade que quebra linha (nada escondido em rolagem). */
 function Builder() {
-  const { shop, owns, state, titleText } = useStore();
+  const { shop, owns, unlocks, titleText } = useStore();
   const equipped = useEquipped();
   const [piece, setPiece] = useState("avatar");
   const current = PIECES.find((p) => p.id === piece) ?? PIECES[0];
@@ -217,7 +217,7 @@ function Builder() {
     const on = shop.find((i) => i.kind === p.kind && owns(i.id) && equipped(i));
     return on?.name ?? p.none ?? "";
   };
-  const count = (p: Piece) => (p.kind ? shop.filter((i) => i.kind === p.kind && owns(i.id)).length : Object.keys(state.unlocks).length);
+  const count = (p: Piece) => (p.kind ? shop.filter((i) => i.kind === p.kind && owns(i.id)).length : Object.keys(unlocks).length);
 
   return (
     <section className="panel glass builder" aria-labelledby="builder-title">
@@ -278,9 +278,9 @@ function PieceOptions({ piece }: { piece: Piece }) {
 
 /** Títulos: só o texto de cada conquista liberada, do mais recente para o mais antigo. */
 function TitleOptions() {
-  const { state, dispatch, describe, gameTitle } = useStore();
+  const { state, dispatch, describe, gameTitle, unlocks } = useStore();
   const current = state.profile.title;
-  const unlocked = Object.entries(state.unlocks).sort((a, b) => b[1].at - a[1].at);
+  const unlocked = Object.entries(unlocks).sort((a, b) => b[1].at - a[1].at);
   const set = (title: string | undefined) => dispatch({ type: "profile", patch: { title } });
   return (
     <>

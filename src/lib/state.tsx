@@ -184,6 +184,11 @@ type Ctx = {
   gameTitle: (gameId: string) => string;
   /** imagem do banner atual do perfil; vazio = degradê padrão */
   bannerImage?: string;
+  /**
+   * Conquistas que contam: só de jogos da biblioteca e do launcher. Sobra de teste (o jogo "autoteste"
+   * do E2E de pacotes) ou de jogo removido fica salva, mas não aparece nem rende XP e fichas.
+   */
+  unlocks: Record<string, Unlock>;
   /** a loja inteira (itens fixos + avatares e banners dos jogos) */
   shop: ShopItem[];
   item: (id: string | undefined) => ShopItem | undefined;
@@ -483,7 +488,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       fiel: s.playDays.length >= 3,
       maratona: longest >= 2 * 3600,
       veterano: total >= 10 * 3600,
-      cacador: Object.keys(s.unlocks).filter((k) => !k.startsWith(`${LAUNCHER_ID}:`)).length >= 10,
+      cacador: Object.values(s.unlocks).filter((u) => u.gameId !== LAUNCHER_ID && games.some((g) => g.id === u.gameId)).length >= 10,
       "primeira-compra": (s.profile.inventory ?? []).length > 0,
     };
     for (const [id, ok] of Object.entries(rules)) {
@@ -491,9 +496,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state, ready, games.length, unlock]);
 
+  const unlocks = useMemo(() => {
+    const known = new Set([LAUNCHER_ID, ...games.map((g) => g.id)]);
+    return Object.fromEntries(Object.entries(state.unlocks).filter(([, u]) => known.has(u.gameId)));
+  }, [state.unlocks, games]);
+
   const xp = useMemo(
-    () => Object.values(state.unlocks).reduce((a, u) => a + TIER_XP[describe(u).tier], 0),
-    [state.unlocks, describe],
+    () => Object.values(unlocks).reduce((a, u) => a + TIER_XP[describe(u).tier], 0),
+    [unlocks, describe],
   );
   const level = Math.floor(xp / XP_PER_LEVEL) + 1;
 
@@ -509,14 +519,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const wallet = useMemo(
     () =>
       computeWallet(
-        Object.values(state.unlocks),
+        Object.values(unlocks),
         (u) => describe(u).tier,
         state.stats,
         level,
         inventory ?? [],
         (id) => byId.get(id)?.price ?? 0,
       ),
-    [state.unlocks, state.stats, level, inventory, describe, byId],
+    [unlocks, state.stats, level, inventory, describe, byId],
   );
 
   const canBuy = useCallback(
@@ -554,7 +564,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const bannerImage = item(state.profile.banner)?.image;
 
-  const titleUnlock = state.profile.title ? state.unlocks[state.profile.title] : undefined;
+  const titleUnlock = state.profile.title ? unlocks[state.profile.title] : undefined;
   const titleText = titleUnlock ? describe(titleUnlock).title : undefined;
   const levelProgress = (xp % XP_PER_LEVEL) / XP_PER_LEVEL;
 
@@ -578,6 +588,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     levelProgress,
     gameTitle,
     bannerImage,
+    unlocks,
     titleText,
     shop,
     item,

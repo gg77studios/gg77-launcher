@@ -56,14 +56,15 @@ export function App() {
     mainRef.current?.scrollTo(0, 0);
   }, [view]);
 
-  // papel de parede: a arte do jogo selecionado ou o fundo escolhido (o banner é só do cartão do perfil)
+  // papel de parede: na Biblioteca sempre a arte do jogo selecionado (é a cara dele); nas outras telas,
+  // a arte do jogo ou o fundo escolhido, conforme o ajuste (o banner do perfil é só do cartão)
   const chosen = item(settings.wallpaper);
   const backdrop = settings.ambient
     ? { image: selected?.banner }
     : chosen?.kind === "banner"
       ? { image: chosen.image }
       : { pattern: itemValue(chosen?.id ?? "wallpaper:degrade") };
-  const wall = backdrop;
+  const wall = view === "biblioteca" && selected?.banner ? { image: selected.banner } : backdrop;
   const wallKey = wall.image ?? `p:${wall.pattern ?? "degrade"}`;
 
   const themeVars = {

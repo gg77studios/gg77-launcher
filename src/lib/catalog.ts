@@ -216,6 +216,11 @@ export const LAUNCHER_BANNERS: BannerDef[] = [
   { id: "madrugada", title: "Madrugada", image: "/games/launcher/banners/madrugada.jpg", unlock: "maratona" },
   { id: "estrada", title: "Estrada", image: "/games/launcher/banners/estrada.jpg", unlock: "veterano" },
   { id: "trofeus", title: "Sala de troféus", image: "/games/launcher/banners/trofeus.jpg", unlock: "cacador" },
+  // coleção sandbox (Gemini, scripts/make-avatars.py --indie-banners)
+  { id: "mundo-blocos", title: "Mundo de blocos", image: "/games/launcher/banners/mundo-blocos.jpg", rarity: "rara", collection: "sandbox" },
+  { id: "caverna-cristais", title: "Caverna de cristais", image: "/games/launcher/banners/caverna-cristais.jpg", rarity: "rara", collection: "sandbox" },
+  { id: "ilhas-flutuantes", title: "Ilhas flutuantes", image: "/games/launcher/banners/ilhas-flutuantes.jpg", rarity: "épica", collection: "sandbox" },
+  { id: "vila-neve", title: "Vila na neve", image: "/games/launcher/banners/vila-neve.jpg", rarity: "épica", collection: "sandbox" },
 ];
 
 export const bannerRef = (gameId: string, bannerId: string) => `ref:${gameId}:${bannerId}`;
@@ -249,6 +254,19 @@ export const LAUNCHER_AVATARS: AvatarDef[] = [
   { id: "gato", name: "Gato aventureiro", image: "/games/launcher/avatars/gato.jpg", rarity: "épica" },
   { id: "golem", name: "Golem de cristal", image: "/games/launcher/avatars/golem.jpg", rarity: "épica" },
   { id: "dragao", name: "Dragãozinho", image: "/games/launcher/avatars/dragao.jpg", rarity: "lendária" },
+  // coleção sandbox: personagens originais em voxel e pixel art (Gemini, scripts/make-avatars.py --indie-avatars)
+  { id: "minerador", name: "Minerador de blocos", image: "/games/launcher/avatars/minerador.jpg", rarity: "comum", collection: "sandbox" },
+  { id: "aldea", name: "Aldeã de blocos", image: "/games/launcher/avatars/aldea.jpg", rarity: "comum", collection: "sandbox" },
+  { id: "esqueleto", name: "Esqueleto arqueiro", image: "/games/launcher/avatars/esqueleto.jpg", rarity: "rara", collection: "sandbox" },
+  { id: "abelha", name: "Abelha cúbica", image: "/games/launcher/avatars/abelha.jpg", rarity: "rara", collection: "sandbox" },
+  { id: "lobo", name: "Lobo de lenço", image: "/games/launcher/avatars/lobo.jpg", rarity: "rara", collection: "sandbox" },
+  { id: "cavaleiro-cristal", name: "Cavaleiro de cristal", image: "/games/launcher/avatars/cavaleiro-cristal.jpg", rarity: "épica", collection: "sandbox" },
+  { id: "explorador", name: "Explorador de cavernas", image: "/games/launcher/avatars/explorador.jpg", rarity: "comum", collection: "sandbox" },
+  { id: "slime", name: "Slime", image: "/games/launcher/avatars/slime.jpg", rarity: "comum", collection: "sandbox" },
+  { id: "cogumelo", name: "Cogumelo andante", image: "/games/launcher/avatars/cogumelo.jpg", rarity: "rara", collection: "sandbox" },
+  { id: "fantasma", name: "Fantasminha", image: "/games/launcher/avatars/fantasma.jpg", rarity: "rara", collection: "sandbox" },
+  { id: "fada", name: "Fada das folhas", image: "/games/launcher/avatars/fada.jpg", rarity: "épica", collection: "sandbox" },
+  { id: "mago-estrelado", name: "Mago estrelado", image: "/games/launcher/avatars/mago-estrelado.jpg", rarity: "épica", collection: "sandbox" },
 ];
 
 export const TIER_XP: Record<Tier, number> = { comum: 10, rara: 25, épica: 50 };

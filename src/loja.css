@@ -2146,3 +2146,55 @@
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
+
+/* ---------- coleção sandbox ---------- */
+
+[data-theme="blocos"] {
+  --ink: #f1f5ea;
+  --ink-2: #c9d4b8;
+  --ink-3: #96a383;
+  --glass-bg: rgb(30 44 20 / 0.5);
+  --glass-strong: rgb(24 34 16 / 0.84);
+  --glass-rim: rgb(170 220 120 / 0.2);
+  --glass-hi: rgb(200 240 160 / 0.3);
+  --glass-sheen: rgb(200 240 160 / 0.1);
+  --line: rgb(190 230 150 / 0.12);
+  --wall-shade:
+    linear-gradient(180deg, rgb(12 16 8 / 0.3) 0%, rgb(12 16 8 / 0.45) 40%, rgb(12 16 8 / 0.9) 100%),
+    linear-gradient(90deg, rgb(12 16 8 / 0.75) 0%, rgb(12 16 8 / 0.2) 60%, rgb(12 16 8 / 0.4) 100%);
+}
+
+.app[data-glass="solido"][data-theme="blocos"] {
+  --glass-bg: #1e2a14;
+  --glass-strong: #1e2a14;
+}
+
+.nick[data-style="voxel"] {
+  font-family: "Pixelify Sans Variable", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  color: #9be06a;
+  text-shadow:
+    1px 1px 0 #5fae3e,
+    2px 2px 0 #4e9a32,
+    3px 3px 0 #6b4a2b,
+    4px 4px 0 #5a3d22,
+    5px 5px 8px rgb(0 0 0 / 0.5);
+}
+
+.av[data-frame="portal"] .fr {
+  filter: drop-shadow(0 0 5px rgb(155 89 255 / 0.8));
+}
+
+/* o rosto ganha um brilho roxo nas bordas, como se estivesse dentro do portal */
+.av[data-frame="portal"] .av-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(closest-side, transparent 55%, rgb(140 70 255 / 0.55));
+  animation: fx-pulse 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.av[data-still][data-frame="portal"] .av-face::after {
+  animation: none;
+}

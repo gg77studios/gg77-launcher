@@ -125,6 +125,31 @@ const EFFECTS: Record<string, Fx> = {
       }
     },
   },
+  // pedacinhos de bloco: quadradinhos de terra, grama e pedra caindo e girando
+  blocos: {
+    count: (w, h) => Math.round((w * h) / 9000),
+    spawn: (w, h, initial) => ({ x: rnd(0, w), y: initial ? rnd(0, h) : -8, vx: rnd(-12, 12), vy: rnd(30, 80), r: rnd(3, 6), p: rnd(0, 6), life: Math.floor(rnd(0, 4)) }),
+    step: (p, dt, _t, _w, h) => {
+      p.vy += 60 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.p += dt * 2;
+      return p.y < h + 8;
+    },
+    draw: (ctx, ps) => {
+      const colors = ["#7d5732", "#5fae3e", "#8f8f8f", "#4fe3e0"];
+      for (const p of ps) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(Math.round(p.p * 2) * (Math.PI / 4));
+        ctx.fillStyle = colors[p.life % colors.length];
+        ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r);
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fillRect(-p.r / 2, p.r / 6, p.r, p.r / 3);
+        ctx.restore();
+      }
+    },
+  },
   aurora: {
     count: () => 3,
     spawn: (_w, _h) => ({ x: 0, y: 0, vx: 0, vy: 0, r: 0, p: rnd(0, 6), life: 0 }),

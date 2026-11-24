@@ -19,7 +19,10 @@ export const itemValue = (id: string | undefined) => (id ? id.slice(id.indexOf("
 
 export const itemKind = (id: string) => id.slice(0, id.indexOf(":")) as ItemKind;
 
-type Def = { id: string; name: string; rarity: Rarity; free?: boolean; minLevel?: number; description?: string };
+type Def = { id: string; name: string; rarity: Rarity; free?: boolean; minLevel?: number; description?: string; collection?: string };
+
+/** Nomes das coleções temáticas (chips da loja). */
+export const COLLECTIONS: Record<string, string> = { sandbox: "Sandbox" };
 
 const make = (kind: ItemKind, defs: Def[]): ShopItem[] =>
   defs.map((d) => ({
@@ -30,6 +33,7 @@ const make = (kind: ItemKind, defs: Def[]): ShopItem[] =>
     price: d.free ? 0 : RARITY_PRICE[d.rarity],
     minLevel: d.minLevel,
     description: d.description,
+    collection: d.collection,
   }));
 
 /** Molduras. O desenho de cada uma está em components/FrameArt.tsx (mesmo id). */
@@ -48,6 +52,9 @@ export const FRAME_ITEMS = make("frame", [
   { id: "runas", name: "Runas", rarity: "épica", description: "Runas que giram e brilham." },
   { id: "coroa", name: "Coroa", rarity: "épica", description: "Aro dourado com coroa cravejada." },
   { id: "holografica", name: "Holográfica", rarity: "lendária", minLevel: 6, description: "Aro iridescente que gira sem parar." },
+  { id: "bloco-grama", name: "Bloco de grama", rarity: "comum", collection: "sandbox", description: "Terra e grama em blocos de pixel." },
+  { id: "minerio", name: "Veio de minério", rarity: "rara", collection: "sandbox", description: "Pedra com minérios que brilham." },
+  { id: "portal", name: "Portal sombrio", rarity: "épica", collection: "sandbox", description: "Obsidiana com um redemoinho roxo." },
   { id: "cosmica", name: "Cósmica", rarity: "lendária", minLevel: 8, description: "Uma galáxia em volta do avatar." },
 ]);
 
@@ -66,6 +73,7 @@ export const BANNER_FX_ITEMS = make("bannerFx", [
   { id: "brasas", name: "Brasas", rarity: "épica", description: "Brasas subindo de uma fogueira." },
   { id: "estrelas", name: "Estrelas cadentes", rarity: "épica", description: "Céu estrelado com riscos de luz." },
   { id: "aurora", name: "Aurora", rarity: "lendária", minLevel: 6, description: "Faixas de aurora boreal ondulando." },
+  { id: "blocos", name: "Blocos quebrando", rarity: "rara", collection: "sandbox", description: "Pedacinhos de bloco caindo pelo banner." },
 ]);
 
 export const NAME_STYLE_ITEMS = make("nameStyle", [
@@ -75,6 +83,7 @@ export const NAME_STYLE_ITEMS = make("nameStyle", [
   { id: "pixel", name: "Pixel", rarity: "rara", description: "Apelido em fonte pixelada." },
   { id: "ouro", name: "Ouro", rarity: "épica", description: "Letras de ouro polido." },
   { id: "arco-iris", name: "Arco-íris", rarity: "lendária", minLevel: 5, description: "Cores que correm pelo apelido." },
+  { id: "voxel", name: "Bloco", rarity: "rara", collection: "sandbox", description: "Letras de bloco em 3D, verde de grama." },
 ]);
 
 /** Temas: os três primeiros são grátis. As cores de cada um estão em styles.css ([data-theme]). */
@@ -87,6 +96,7 @@ export const THEME_ITEMS = make("theme", [
   { id: "pergaminho", name: "Pergaminho", rarity: "rara", description: "Claro e quente, como papel antigo." },
   { id: "brasa", name: "Brasa", rarity: "épica", description: "Vermelho e carvão." },
   { id: "synthwave", name: "Synthwave", rarity: "épica", description: "Roxo e rosa de fliperama." },
+  { id: "blocos", name: "Mundo de blocos", rarity: "rara", collection: "sandbox", description: "Verde de grama e marrom de terra." },
 ]);
 
 /** Prévia das cores de cada tema (cartões da loja e do perfil). */
@@ -99,6 +109,7 @@ export const THEME_PREVIEW: Record<string, { bg: string; surface: string; light?
   pergaminho: { bg: "#efe4cf", surface: "#fbf4e6", light: true },
   brasa: { bg: "#140a08", surface: "#2a1410" },
   synthwave: { bg: "#120a1f", surface: "#241238" },
+  blocos: { bg: "#13180d", surface: "#2b3a1c" },
 };
 
 export const LIGHT_THEMES = new Set(Object.entries(THEME_PREVIEW).filter(([, t]) => t.light).map(([id]) => id));
@@ -131,6 +142,7 @@ export function buildShop(games: Game[], defsFor: (gameId: string) => Achievemen
     price: i < 6 ? 0 : RARITY_PRICE[a.rarity ?? "comum"],
     image: a.image,
     gameId: LAUNCHER_ID,
+    collection: a.collection,
   }));
   const gameAvatars: ShopItem[] = games.flatMap((g) =>
     (g.avatars ?? []).map((a) => ({
@@ -160,6 +172,7 @@ export function buildShop(games: Game[], defsFor: (gameId: string) => Achievemen
         price: RARITY_PRICE[rarity],
         image: b.image,
         gameId,
+        collection: b.collection,
       };
     }),
   );

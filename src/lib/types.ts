@@ -22,6 +22,8 @@ export type BannerDef = {
   image?: string;
   /** raridade na loja; sem ela, vale a raridade da conquista em `unlock` (ou "rara") */
   rarity?: Rarity;
+  /** coleção temática na loja (filtro), ex. "sandbox" */
+  collection?: string;
   /**
    * Legado (até a 0.5): conquista do mesmo jogo que liberava o banner. Hoje só serve para
    * a migração (quem já tinha liberado ganha o banner) e para sugerir a raridade.
@@ -30,7 +32,7 @@ export type BannerDef = {
 };
 
 /** Avatar pronto que o jogo oferece na loja (retrato quadrado). */
-export type AvatarDef = { id: string; name: string; image: string; rarity?: Rarity };
+export type AvatarDef = { id: string; name: string; image: string; rarity?: Rarity; collection?: string };
 
 /** Categorias de itens da loja. */
 export type ItemKind = "avatar" | "banner" | "frame" | "avatarFx" | "bannerFx" | "nameStyle" | "theme" | "wallpaper";
@@ -51,6 +53,8 @@ export type ShopItem = {
   gameId?: string;
   /** nível mínimo para comprar */
   minLevel?: number;
+  /** coleção temática (filtro da loja), ex. "sandbox" */
+  collection?: string;
   /** frase curta na loja */
   description?: string;
 };

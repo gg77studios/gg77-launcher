@@ -22,7 +22,7 @@ export function AchievementsView() {
       const defs = defsFor(gid);
       for (const d of defs) out.push({ gameId: gid, def: d, unlock: state.unlocks[unlockKey(gid, d.id)] });
       // conquistas enviadas por jogos sem catálogo
-      for (const u of Object.values(state.unlocks)) {
+      for (const u of Object.values(state.unlocks).filter((x) => x.gameId === gid)) {
         if (u.gameId === gid && !defs.some((d) => d.id === u.id)) {
           out.push({ gameId: gid, def: { id: u.id, ...describe(u) }, unlock: u });
         }
