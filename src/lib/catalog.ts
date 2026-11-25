@@ -102,7 +102,7 @@ export const CATALOG: Game[] = [
     banner: "/games/tribos/banner.jpg",
     icon: "/games/tribos/icon.png",
     tint: "#2d2721",
-    tagline: "Estratégia em hexágonos sem turnos, para até 5 clãs.",
+    tagline: "RTS em hexágonos para até 5 clãs: junte comida, madeira e pedra, erga muros e torres.",
     // ícones: a arte pintada do próprio jogo (Gemini)
     pixelArt: false,
     // O jogo manda estas conquistas pelo SDK (client/src/profile.ts no repositório do jogo).
