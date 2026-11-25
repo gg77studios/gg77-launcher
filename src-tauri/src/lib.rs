@@ -36,6 +36,38 @@ fn clip(value: Option<String>, max: usize) -> Option<String> {
     value.map(|v| v.chars().take(max).collect())
 }
 
+/// Há janela de jogo aberta (fora a `except`, que está fechando)?
+fn games_open(app: &AppHandle, except: &str) -> bool {
+    app.webview_windows().keys().any(|l| l.starts_with("game-") && l != except)
+}
+
+/// O launcher foi "fechado" com jogo aberto e ficou escondido para continuar recebendo as
+/// conquistas e o tempo da sessão. Quando o último jogo fecha, dá um instante para a janela
+/// principal gravar a sessão e encerra o programa.
+fn quit_if_hidden(app: &AppHandle, closing: &str) {
+    let hidden = app.get_webview_window("main").is_some_and(|w| !w.is_visible().unwrap_or(true));
+    if !hidden || games_open(app, closing) {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(2000));
+        let still_hidden = app.get_webview_window("main").is_some_and(|w| !w.is_visible().unwrap_or(true));
+        if still_hidden && !games_open(&app, "") {
+            app.exit(0);
+        }
+    });
+}
+
+/// Traz a janela principal de volta (segunda abertura do launcher, ou depois de escondida).
+fn show_main(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
 /// Abre a janela do jogo (ou foca a que já está aberta) e mede a sessão.
 fn open_game_window(app: &AppHandle, id: &str, url: WebviewUrl, title: &str) -> Result<(), String> {
     let label = format!("game-{id}");
@@ -56,6 +88,7 @@ fn open_game_window(app: &AppHandle, id: &str, url: WebviewUrl, title: &str) -> 
     let started = Instant::now();
     let handle = app.clone();
     let gid = id.to_string();
+    let own_label = label.clone();
     window.on_window_event(move |event| {
         if let WindowEvent::Destroyed = event {
             #[cfg(debug_assertions)]
@@ -65,6 +98,7 @@ fn open_game_window(app: &AppHandle, id: &str, url: WebviewUrl, title: &str) -> 
                 "game-closed",
                 SessionEvent { game_id: gid.clone(), seconds: started.elapsed().as_secs() },
             );
+            quit_if_hidden(&handle, &own_label);
         }
     });
 
@@ -201,9 +235,10 @@ async fn get_game_session(window: WebviewWindow, state: tauri::State<'_, HubStat
     let (Some(hub), Some(token)) = (hub, token) else {
         return Err("entre na sua conta GG77 no launcher".into());
     };
-    let resp = reqwest::Client::new()
+    let resp = packages::http()
         .post(format!("{}/games/{}/session", hub.trim_end_matches('/'), game_id))
         .bearer_auth(token)
+        .timeout(std::time::Duration::from_secs(15))
         .send()
         .await
         .map_err(|e| format!("sem conexão com a conta GG77 ({e})"))?;
@@ -218,6 +253,10 @@ async fn get_game_session(window: WebviewWindow, state: tauri::State<'_, HubStat
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // um launcher só: dois abertos dividiriam o gg77.json (o último a gravar apaga o tempo de
+        // jogo do outro) e o refresh token (um renova e o outro acaba deslogando os dois).
+        // Precisa ser o primeiro plugin registrado.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
         .manage(HubState::default())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
@@ -228,15 +267,19 @@ pub fn run() {
         .register_asynchronous_uri_scheme_protocol("gg77game", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_string();
-            std::thread::spawn(move || {
-                let (status, mime, body) = packages::serve(&app, &path);
-                let response = tauri::http::Response::builder()
-                    .status(status)
-                    .header("Content-Type", mime)
-                    .header("Cache-Control", "no-cache")
-                    .body(body)
-                    .expect("resposta válida");
-                responder.respond(response);
+            let range = request.headers().get("range").and_then(|v| v.to_str().ok()).map(str::to_string);
+            // fila de trabalho do runtime em vez de uma thread nova por arquivo
+            tauri::async_runtime::spawn_blocking(move || {
+                let served = packages::serve(&app, &path, range.as_deref());
+                let mut response = tauri::http::Response::builder()
+                    .status(served.status)
+                    .header("Content-Type", served.mime)
+                    .header("Accept-Ranges", "bytes")
+                    .header("Cache-Control", "no-cache");
+                if let Some(content_range) = &served.content_range {
+                    response = response.header("Content-Range", content_range);
+                }
+                responder.respond(response.body(served.body).expect("resposta válida"));
             });
         })
         .invoke_handler(tauri::generate_handler![
@@ -253,6 +296,20 @@ pub fn run() {
             packages::verify_game,
         ])
         .setup(|_app| {
+            // Fechar o launcher com jogo aberto só esconde a janela: ela é quem recebe as
+            // conquistas e o tempo da sessão. O programa encerra quando o último jogo fechar.
+            if let Some(main) = _app.get_webview_window("main") {
+                let handle = _app.handle().clone();
+                let window = main.clone();
+                main.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        if games_open(&handle, "") {
+                            api.prevent_close();
+                            let _ = window.hide();
+                        }
+                    }
+                });
+            }
             // Autotestes (só em desenvolvimento):
             // GG77_AUTOTEST_URL=<página> abre a página como jogo e fecha depois de 8 s.
             // GG77_AUTOTEST_MANIFEST=<manifesto> instala o pacote do jogo "autoteste" e abre a versão instalada.

@@ -9,15 +9,18 @@ import "./loja.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AccountProvider } from "./lib/account";
 import { StoreProvider } from "./lib/state";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <StoreProvider>
-      <AccountProvider>
-        <App />
-      </AccountProvider>
-    </StoreProvider>
+    <ErrorBoundary>
+      <StoreProvider>
+        <AccountProvider>
+          <App />
+        </AccountProvider>
+      </StoreProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

@@ -8,6 +8,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { hub, type HubUser } from "./hub";
 import { loadKey, saveKey } from "./platform";
+import { LAUNCHER_ID } from "./catalog";
 import { useStore } from "./state";
 import type { Persisted, Profile } from "./types";
 
@@ -40,9 +41,10 @@ const snapshotOf = (s: Persisted): Snapshot => ({
 const snapKey = (userId: string) => `hubSync:${userId}`;
 const PRESENCE_MS = 60_000;
 const KEEPALIVE_MS = 10 * 60_000;
+const RETRY_MS = 30_000;
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
-  const { state, ready, dispatch, running } = useStore();
+  const { state, ready, dispatch, running, games } = useStore();
   const [user, setUser] = useState<HubUser | null>(null);
   const [restored, setRestored] = useState(false);
   const [sync, setSync] = useState<SyncState>("off");
@@ -51,6 +53,22 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef(state);
   stateRef.current = state;
   const busy = useRef(false);
+  const [attempt, setAttempt] = useState(0);
+  // só sobe o que é de jogo da biblioteca ou do launcher: sobra de teste (o "autoteste" do E2E
+  // de pacotes) e de jogo removido fica só neste PC
+  const knownRef = useRef(new Set<string>());
+  knownRef.current = new Set([LAUNCHER_ID, ...games.map((g) => g.id)]);
+
+  // o hub recusou a sessão salva: volta para a tela de entrada
+  useEffect(() => {
+    hub.onSessionLost(() => {
+      snapRef.current = null;
+      setSynced(false);
+      setSync("off");
+      setUser(null);
+    });
+    return () => hub.onSessionLost(null);
+  }, []);
 
   useEffect(() => {
     void hub.restore().then((u) => {
@@ -68,7 +86,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     try {
       const s = stateRef.current;
       const known = new Set(snap.unlocks);
-      const fresh = Object.entries(s.unlocks).filter(([k]) => !known.has(k));
+      const fresh = Object.entries(s.unlocks).filter(([k, u]) => !known.has(k) && knownRef.current.has(u.gameId));
       if (fresh.length) {
         await hub.pushAchievements(fresh.map(([, v]) => v));
         snap.unlocks = [...snap.unlocks, ...fresh.map(([k]) => k)];
@@ -76,7 +94,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       for (const [gameId, st] of Object.entries(s.stats)) {
         const before = snap.stats[gameId] ?? { seconds: 0, sessions: 0 };
         const sessions = st.sessions - before.sessions;
-        if (sessions <= 0) continue;
+        if (sessions <= 0 || !knownRef.current.has(gameId)) continue;
         await hub.pushSessions(gameId, Math.max(0, st.seconds - before.seconds), Math.min(sessions, 100));
         snap.stats[gameId] = { seconds: st.seconds, sessions: st.sessions };
       }
@@ -108,8 +126,10 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         } else {
           // primeira vez desta conta neste PC: o histórico local sobe inteiro
           lib = await hub.importLocal(
-            Object.values(s.unlocks),
-            Object.entries(s.stats).map(([gameId, st]) => ({ gameId, seconds: st.seconds, sessions: st.sessions, lastPlayed: st.lastPlayed ?? null })),
+            Object.values(s.unlocks).filter((u) => knownRef.current.has(u.gameId)),
+            Object.entries(s.stats)
+              .filter(([gameId]) => knownRef.current.has(gameId))
+              .map(([gameId, st]) => ({ gameId, seconds: st.seconds, sessions: st.sessions, lastPlayed: st.lastPlayed ?? null })),
           );
           snapRef.current = snapshotOf(s);
         }
@@ -142,7 +162,22 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user, ready, dispatch, push]);
+  }, [user, ready, dispatch, push, attempt]);
+
+  // sem conexão: tenta de novo sozinho (antes só voltava na próxima conquista ou ao reabrir)
+  useEffect(() => {
+    if (!user || sync !== "offline") return;
+    const retry = () => {
+      if (synced) void push();
+      else setAttempt((a) => a + 1);
+    };
+    const t = window.setInterval(retry, RETRY_MS);
+    window.addEventListener("online", retry);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener("online", retry);
+    };
+  }, [user, sync, synced, push]);
 
   // mudança local (conquista, fim de sessão): envia em 3 s
   useEffect(() => {

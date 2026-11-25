@@ -28,6 +28,10 @@ export class HubError extends Error {
 let saved: Saved | null = null;
 let accessToken: string | null = null;
 let refreshing: Promise<boolean> | null = null;
+let onLost: (() => void) | null = null;
+
+/** Sem resposta do hub nesse tempo, a chamada falha como "sem conexão" em vez de ficar pendurada. */
+const TIMEOUT_MS = 15_000;
 
 async function pushToRust(token: string | null) {
   if (!isTauri) return;
@@ -43,20 +47,37 @@ async function setSession(data: { user: HubUser; accessToken: string; refreshTok
 }
 
 async function raw(method: string, path: string, body?: unknown, token?: string | null) {
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
   let res: Response;
+  let text: string;
   try {
     res = await fetch(HUB_URL + path, {
       method,
       headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: abort.signal,
     });
+    text = await res.text();
   } catch {
     throw new HubError("Sem conexão com a conta GG77.", 0);
+  } finally {
+    clearTimeout(timer);
   }
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new HubError(data?.error ?? `Erro ${res.status}`, res.status);
-  return data;
+  // o proxy na frente do hub responde página HTML quando o hub está fora (502): não é JSON
+  let data: { error?: string } | null = null;
+  let parsed = !text;
+  try {
+    if (text) {
+      data = JSON.parse(text);
+      parsed = true;
+    }
+  } catch {
+    /* tratado abaixo */
+  }
+  if (!res.ok) throw new HubError(data?.error ?? `A conta GG77 respondeu ${res.status}.`, res.status);
+  if (!parsed) throw new HubError("Resposta inválida da conta GG77.", 0);
+  return data as never;
 }
 
 /** Troca o refresh por um par novo. false = sessão acabou (precisa entrar de novo). */
@@ -70,7 +91,11 @@ async function refresh(): Promise<boolean> {
       })
       .catch(async (e: HubError) => {
         // sem internet a sessão continua salva; só 401 encerra
-        if (e.status === 401) await setSession(null);
+        if (e.status === 401) {
+          await setSession(null);
+          // a tela precisa saber: sem isso o launcher fica "logado" com tudo falhando
+          onLost?.();
+        }
         return false;
       })
       .finally(() => {
@@ -101,6 +126,10 @@ export const hub = {
   },
   get user() {
     return saved?.user ?? null;
+  },
+  /** Avisa quando o hub recusa a sessão salva (expirou ou foi encerrada): hora de entrar de novo. */
+  onSessionLost(fn: (() => void) | null) {
+    onLost = fn;
   },
   /** Renova o token de acesso antes de vencer (o login único dos jogos usa ele). */
   keepAlive: () => refresh(),

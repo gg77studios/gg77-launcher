@@ -12,11 +12,12 @@ use ed25519_dalek::{Signature, VerifyingKey};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::{Component, Path, PathBuf};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 /// Chave pública que assina os pacotes (a privada fica fora do repositório).
@@ -111,8 +112,76 @@ fn version_dir(version: &str) -> String {
 }
 
 fn game_dir<R: Runtime>(app: &AppHandle<R>, id: &str) -> Result<PathBuf, String> {
+    let id = slug(id);
+    // id vazio viraria a própria pasta `games`: desinstalar apagaria todos os jogos
+    if id.is_empty() {
+        return Err("id de jogo inválido".into());
+    }
     let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    Ok(base.join("games").join(slug(id)))
+    Ok(base.join("games").join(id))
+}
+
+/// Cliente HTTP único: conexão travada não deixa "Baixando…" para sempre. O limite é por
+/// leitura (sem dados por 30 s), não pelo download inteiro, que pode ser longo.
+pub fn http() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(15))
+            .read_timeout(Duration::from_secs(30))
+            .build()
+            .unwrap_or_default()
+    })
+}
+
+/// Uma instalação por jogo de cada vez: duas ao mesmo tempo dividiriam o `.part` e a pasta `.tmp`.
+struct InstallGuard(String);
+
+impl InstallGuard {
+    fn set() -> &'static Mutex<HashSet<String>> {
+        static BUSY: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+        BUSY.get_or_init(Default::default)
+    }
+
+    fn acquire(id: &str) -> Result<Self, String> {
+        let mut busy = Self::set().lock().map_err(|_| "instalação indisponível".to_string())?;
+        if !busy.insert(id.to_string()) {
+            return Err("este jogo já está sendo instalado".into());
+        }
+        Ok(Self(id.to_string()))
+    }
+}
+
+impl Drop for InstallGuard {
+    fn drop(&mut self) {
+        if let Ok(mut busy) = Self::set().lock() {
+            busy.remove(&self.0);
+        }
+    }
+}
+
+/// Pasta da versão ativa por jogo, para o `serve` não reler o active.json a cada arquivo.
+fn root_cache() -> &'static Mutex<HashMap<String, PathBuf>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, PathBuf>>> = OnceLock::new();
+    CACHE.get_or_init(Default::default)
+}
+
+fn forget_root(dir: &Path) {
+    if let (Some(name), Ok(mut cache)) = (dir.file_name(), root_cache().lock()) {
+        cache.remove(name.to_string_lossy().as_ref());
+    }
+}
+
+fn cached_root<R: Runtime>(app: &AppHandle<R>, id: &str) -> Option<PathBuf> {
+    let id = slug(id);
+    if let Some(root) = root_cache().lock().ok().and_then(|c| c.get(&id).cloned()) {
+        return Some(root);
+    }
+    let root = active_root(app, &id)?;
+    if let Ok(mut cache) = root_cache().lock() {
+        cache.insert(id, root.clone());
+    }
+    Some(root)
 }
 
 fn read_active(dir: &Path) -> Option<Active> {
@@ -199,7 +268,11 @@ pub fn version_lt(a: &str, b: &str) -> bool {
 /// Baixa o manifesto; devolve também o endereço dele, base dos endereços relativos.
 async fn fetch_manifest(url: &str) -> Result<(Manifest, reqwest::Url), String> {
     let base = reqwest::Url::parse(url).map_err(|_| "endereço do manifesto inválido")?;
-    let text = reqwest::get(base.clone())
+    let text = http()
+        .get(base.clone())
+        // o manifesto é pequeno: 15 s no total bastam
+        .timeout(Duration::from_secs(15))
+        .send()
         .await
         .map_err(|e| format!("sem conexão com o servidor do jogo ({e})"))?
         .error_for_status()
@@ -270,11 +343,20 @@ fn extract_files(zip_path: &Path, dest: &Path) -> Result<BTreeMap<String, String
         if let Some(parent) = out.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
-        let mut buf = Vec::with_capacity(entry.size() as usize);
-        entry.read_to_end(&mut buf).map_err(|_| "pacote corrompido")?;
-        fs::write(&out, &buf).map_err(|e| e.to_string())?;
+        // em pedaços: arquivo grande (música, vídeo) não vai inteiro para a memória
+        let mut file = fs::File::create(&out).map_err(|e| e.to_string())?;
+        let mut hasher = Sha256::new();
+        let mut buf = [0u8; 64 * 1024];
+        loop {
+            let n = entry.read(&mut buf).map_err(|_| "pacote corrompido")?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buf[..n]);
+            file.write_all(&buf[..n]).map_err(|e| e.to_string())?;
+        }
         let key = rel.to_string_lossy().replace('\\', "/");
-        hashes.insert(key, hex::encode(Sha256::digest(&buf)));
+        hashes.insert(key, hex::encode(hasher.finalize()));
     }
     Ok(hashes)
 }
@@ -317,8 +399,7 @@ pub fn apply_patch(old_root: &Path, patch_zip: &Path, files: &[FileEntry], dest:
                 if fs::hard_link(&src, &out).is_err() {
                     fs::copy(&src, &out).map_err(|_| format!("arquivo da versão instalada sumiu: {}", f.path))?;
                 }
-                let buf = fs::read(&out).map_err(|e| e.to_string())?;
-                hex::encode(Sha256::digest(&buf))
+                hash_file(&out).map_err(|e| e.to_string())?
             }
         };
         if !hash.eq_ignore_ascii_case(&f.sha256) {
@@ -330,6 +411,28 @@ pub fn apply_patch(old_root: &Path, patch_zip: &Path, files: &[FileEntry], dest:
         return Err("versão sem index.html".into());
     }
     Ok(hashes)
+}
+
+/// sha256 de um arquivo, lido em pedaços.
+fn hash_file(path: &Path) -> io::Result<String> {
+    let mut hasher = Sha256::new();
+    hash_into(path, &mut hasher)?;
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// Alimenta `hasher` com o arquivo inteiro; devolve o tamanho lido.
+fn hash_into(path: &Path, hasher: &mut Sha256) -> io::Result<u64> {
+    let mut file = fs::File::open(path)?;
+    let mut buf = [0u8; 64 * 1024];
+    let mut total = 0u64;
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            return Ok(total);
+        }
+        hasher.update(&buf[..n]);
+        total += n as u64;
+    }
 }
 
 /// Baixa `url` para `part`, retomando de onde parou se o arquivo parcial já existir e o
@@ -344,14 +447,13 @@ async fn download<R: Runtime>(
 ) -> Result<u64, String> {
     let mut hasher = Sha256::new();
     let mut received: u64 = 0;
-    if let Ok(existing) = fs::read(part) {
-        if (existing.len() as u64) < size {
-            hasher.update(&existing);
-            received = existing.len() as u64;
+    if fs::metadata(part).is_ok_and(|m| m.len() > 0 && m.len() < size) {
+        match hash_into(part, &mut hasher) {
+            Ok(n) => received = n,
+            Err(_) => hasher = Sha256::new(),
         }
     }
-    let client = reqwest::Client::new();
-    let mut req = client.get(url.clone());
+    let mut req = http().get(url.clone());
     if received > 0 {
         req = req.header(reqwest::header::RANGE, format!("bytes={received}-"));
     }
@@ -371,6 +473,7 @@ async fn download<R: Runtime>(
     };
     let total = size.max(received + resp.content_length().unwrap_or(0));
     let mut last = Instant::now();
+    let mut too_big = false;
     let mut stream = resp.bytes_stream();
     emit_progress(app, game_id, "download", received, total);
     while let Some(chunk) = stream.next().await {
@@ -378,6 +481,11 @@ async fn download<R: Runtime>(
         file.write_all(&chunk).map_err(|e| e.to_string())?;
         hasher.update(&chunk);
         received += chunk.len() as u64;
+        // o tamanho vem do manifesto assinado: servidor que manda mais que isso não enche o disco
+        if received > size {
+            too_big = true;
+            break;
+        }
         if last.elapsed().as_millis() > 150 {
             emit_progress(app, game_id, "download", received, total);
             last = Instant::now();
@@ -385,6 +493,10 @@ async fn download<R: Runtime>(
     }
     file.flush().map_err(|e| e.to_string())?;
     drop(file);
+    if too_big {
+        let _ = fs::remove_file(part);
+        return Err("o arquivo baixado é maior que o anunciado; tente de novo".into());
+    }
     let digest = hex::encode(hasher.finalize());
     if !digest.eq_ignore_ascii_case(sha256.trim()) {
         let _ = fs::remove_file(part);
@@ -409,6 +521,7 @@ fn activate(dir: &Path, version: &str, sha256: &str) -> Result<(), String> {
     let tmp = dir.join("active.json.tmp");
     fs::write(&tmp, serde_json::to_vec_pretty(&active).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     fs::rename(&tmp, dir.join("active.json")).map_err(|e| e.to_string())?;
+    forget_root(dir);
     if let Ok(entries) = fs::read_dir(dir.join("versions")) {
         for e in entries.flatten() {
             if e.file_name().to_string_lossy() != version_dir(version) {
@@ -461,8 +574,19 @@ pub async fn install_game<R: Runtime>(app: AppHandle<R>, game_id: String, manife
     }
 
     let dir = game_dir(&app, &game_id)?;
+    let _guard = InstallGuard::acquire(&slug(&game_id))?;
     fs::create_dir_all(dir.join("versions")).map_err(|e| e.to_string())?;
     let installed = read_active(&dir).map(|a| a.version).filter(|_| active_root(&app, &game_id).is_some());
+    if let Some(have) = installed.as_deref() {
+        // já está nesta versão: nada a baixar (para refazer a instalação, desinstale antes)
+        if have == m.version {
+            return Ok(m.version);
+        }
+        // manifesto antigo reapresentado (a assinatura continua válida): não volta de versão
+        if version_lt(&m.version, have) {
+            return Err(format!("o manifesto traz a versão {}, mais antiga que a instalada ({have})", m.version));
+        }
+    }
 
     if let (Some(p), Some(old_root)) = (patch_for(&m, installed.as_deref()), active_root(&app, &game_id)) {
         match install_patch(&app, &game_id, &m, &base, p, &dir, old_root).await {
@@ -476,7 +600,7 @@ pub async fn install_game<R: Runtime>(app: AppHandle<R>, game_id: String, manife
         }
     }
 
-    let part = dir.join(format!("full-{}.zip.part", &m.sha256.get(..16).unwrap_or("x")));
+    let part = dir.join(format!("full-{}.zip.part", m.sha256.get(..16).unwrap_or("x")));
     let received = download(&app, &game_id, resolve(&base, &m.url)?, &part, &m.sha256, m.size).await?;
 
     emit_progress(&app, &game_id, "extract", received, received);
@@ -513,7 +637,7 @@ async fn install_patch<R: Runtime>(
     dir: &Path,
     old_root: PathBuf,
 ) -> Result<(), String> {
-    let part = dir.join(format!("patch-{}.zip.part", &p.sha256.get(..16).unwrap_or("x")));
+    let part = dir.join(format!("patch-{}.zip.part", p.sha256.get(..16).unwrap_or("x")));
     let received = download(app, game_id, resolve(base, &p.url)?, &part, &p.sha256, p.size).await?;
     emit_progress(app, game_id, "extract", received, received);
     let (version, sha, files) = (m.version.clone(), m.sha256.to_lowercase(), m.files.clone());
@@ -538,6 +662,8 @@ async fn install_patch<R: Runtime>(
 #[tauri::command]
 pub fn uninstall_game<R: Runtime>(app: AppHandle<R>, game_id: String) -> Result<(), String> {
     let dir = game_dir(&app, &game_id)?;
+    let _guard = InstallGuard::acquire(&slug(&game_id))?;
+    forget_root(&dir);
     match fs::remove_dir_all(&dir) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
@@ -554,8 +680,8 @@ pub async fn verify_game<R: Runtime>(app: AppHandle<R>, game_id: String) -> Resu
         let hashes: BTreeMap<String, String> = serde_json::from_slice(&raw).map_err(|_| "lista de arquivos corrompida")?;
         let mut bad = Vec::new();
         for (rel, expected) in hashes {
-            match fs::read(root.join(&rel)) {
-                Ok(buf) if hex::encode(Sha256::digest(&buf)) == expected => {}
+            match hash_file(&root.join(&rel)) {
+                Ok(hash) if hash == expected => {}
                 _ => bad.push(rel),
             }
         }
@@ -591,33 +717,95 @@ fn mime_for(path: &Path) -> &'static str {
     }
 }
 
+/// Resposta do protocolo `gg77game`.
+pub struct Served {
+    pub status: u16,
+    pub mime: &'static str,
+    pub body: Vec<u8>,
+    /// `Content-Range` das respostas 206 e 416
+    pub content_range: Option<String>,
+}
+
+impl Served {
+    fn text(status: u16, body: &'static str) -> Self {
+        Self { status, mime: "text/plain; charset=utf-8", body: body.as_bytes().to_vec(), content_range: None }
+    }
+}
+
+/// Trecho pedido por um cabeçalho `Range: bytes=a-b` (um só intervalo), dentro de um arquivo de
+/// `len` bytes. `None` = cabeçalho que não entendemos (responde o arquivo inteiro);
+/// `Some(Err(()))` = intervalo fora do arquivo.
+fn parse_range(header: &str, len: u64) -> Option<Result<(u64, u64), ()>> {
+    let spec = header.trim().strip_prefix("bytes=")?;
+    if spec.contains(',') {
+        return None;
+    }
+    let (a, b) = spec.split_once('-')?;
+    let (a, b) = (a.trim(), b.trim());
+    if a.is_empty() {
+        // sufixo: os últimos N bytes
+        let n: u64 = b.parse().ok()?;
+        if n == 0 || len == 0 {
+            return Some(Err(()));
+        }
+        return Some(Ok((len.saturating_sub(n), len - 1)));
+    }
+    let start: u64 = a.parse().ok()?;
+    if start >= len {
+        return Some(Err(()));
+    }
+    let end = if b.is_empty() { len - 1 } else { b.parse::<u64>().ok()?.min(len - 1) };
+    if end < start {
+        return Some(Err(()));
+    }
+    Some(Ok((start, end)))
+}
+
+/// Lê o arquivo inteiro ou só o trecho pedido (áudio e vídeo pedem por `Range` para avançar).
+fn read_file(file: &Path, range: Option<&str>) -> io::Result<Served> {
+    let mime = mime_for(file);
+    let mut f = fs::File::open(file)?;
+    let len = f.metadata()?.len();
+    match range.and_then(|r| parse_range(r, len)) {
+        Some(Ok((start, end))) => {
+            let mut body = vec![0u8; (end - start + 1) as usize];
+            f.seek(SeekFrom::Start(start))?;
+            f.read_exact(&mut body)?;
+            Ok(Served { status: 206, mime, body, content_range: Some(format!("bytes {start}-{end}/{len}")) })
+        }
+        Some(Err(())) => Ok(Served { status: 416, mime, body: Vec::new(), content_range: Some(format!("bytes */{len}")) }),
+        None => {
+            let mut body = Vec::with_capacity(len as usize);
+            f.read_to_end(&mut body)?;
+            Ok(Served { status: 200, mime, body, content_range: None })
+        }
+    }
+}
+
 /// Resposta do protocolo `gg77game`: `/<jogo>/<caminho>` dentro da versão ativa.
 /// Caminho sem extensão que não existe cai no index.html (rotas de SPA).
-pub fn serve<R: Runtime>(app: &AppHandle<R>, path: &str) -> (u16, &'static str, Vec<u8>) {
+pub fn serve<R: Runtime>(app: &AppHandle<R>, path: &str, range: Option<&str>) -> Served {
     let decoded = percent_decode(path);
     let mut parts = decoded.trim_start_matches('/').splitn(2, '/');
     let game = parts.next().unwrap_or_default();
-    let rest = parts.next().unwrap_or("").split(['?', '#']).next().unwrap_or("");
-    let Some(root) = active_root(app, game) else {
-        return (404, "text/plain; charset=utf-8", b"jogo nao instalado".to_vec());
+    let rest = parts.next().unwrap_or("");
+    let Some(root) = cached_root(app, game) else {
+        return Served::text(404, "jogo nao instalado");
     };
     let rel = if rest.is_empty() { PathBuf::from("index.html") } else {
         match safe_relative(rest) {
             Some(p) => p,
-            None => return (400, "text/plain; charset=utf-8", b"caminho invalido".to_vec()),
+            None => return Served::text(400, "caminho invalido"),
         }
     };
     let mut file = root.join(&rel);
     if !file.is_file() {
         if rel.extension().is_some() {
-            return (404, "text/plain; charset=utf-8", b"nao encontrado".to_vec());
+            return Served::text(404, "nao encontrado");
         }
         file = root.join("index.html");
     }
-    match fs::read(&file) {
-        Ok(buf) => (200, mime_for(&file), buf),
-        Err(_) => (404, "text/plain; charset=utf-8", b"nao encontrado".to_vec()),
-    }
+    read_file(&file, range).unwrap_or_else(|_| Served::text(404, "nao encontrado"))
 }
 
 fn percent_decode(s: &str) -> String {
@@ -854,6 +1042,38 @@ mod tests {
         assert_ne!(version_dir("1.10.0"), version_dir("11.0.0"));
         assert_eq!(version_dir("../1.0.0"), "/1.0.0".trim_start_matches('/').to_string());
         assert!(!version_dir("../../x").contains('/'));
+    }
+
+    #[test]
+    fn ranges() {
+        assert_eq!(parse_range("bytes=0-3", 10), Some(Ok((0, 3))));
+        assert_eq!(parse_range("bytes=4-", 10), Some(Ok((4, 9))));
+        assert_eq!(parse_range("bytes=-3", 10), Some(Ok((7, 9))));
+        assert_eq!(parse_range("bytes=5-99", 10), Some(Ok((5, 9))));
+        assert_eq!(parse_range("bytes=10-", 10), Some(Err(())));
+        assert_eq!(parse_range("bytes=6-2", 10), Some(Err(())));
+        assert_eq!(parse_range("bytes=0-1,4-5", 10), None);
+        assert_eq!(parse_range("items=0-1", 10), None);
+
+        let dir = temp("range");
+        let file = dir.join("a.mp3");
+        fs::write(&file, b"0123456789").unwrap();
+        let part = read_file(&file, Some("bytes=2-5")).unwrap();
+        assert_eq!((part.status, part.body.as_slice()), (206, b"2345".as_slice()));
+        assert_eq!(part.content_range.as_deref(), Some("bytes 2-5/10"));
+        let whole = read_file(&file, None).unwrap();
+        assert_eq!((whole.status, whole.body.len()), (200, 10));
+        assert_eq!(read_file(&file, Some("bytes=50-")).unwrap().status, 416);
+        assert_eq!(hash_file(&file).unwrap(), sha(b"0123456789"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn install_guard_is_exclusive() {
+        let first = InstallGuard::acquire("guard-test").unwrap();
+        assert!(InstallGuard::acquire("guard-test").is_err());
+        drop(first);
+        assert!(InstallGuard::acquire("guard-test").is_ok());
     }
 
     #[test]

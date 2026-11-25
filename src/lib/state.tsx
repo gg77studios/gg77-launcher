@@ -40,7 +40,23 @@ type Action =
 
 const EMPTY_STATS: GameStats = { seconds: 0, sessions: 0, longestSession: 0 };
 
-const dayKey = (t: number) => new Date(t).toISOString().slice(0, 10);
+// dia no fuso do jogador: em UTC, jogar depois das 21 h (UTC-3) contava no dia seguinte
+const dayKey = (t: number) => {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** Regra de ícone do catálogo (expressão regular vinda de fora): inválida conta como "não bate". */
+function matches(pattern: string, id: string) {
+  try {
+    return new RegExp(pattern).test(id);
+  } catch {
+    return false;
+  }
+}
+
+/** De quanto em quanto o launcher aberto procura versão nova dos jogos. */
+const PACKAGE_CHECK_MS = 30 * 60_000;
 
 function reducer(s: Persisted, a: Action): Persisted {
   switch (a.type) {
@@ -223,7 +239,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // carrega o estado salvo (mescla com o padrão para campos novos de versões futuras)
   useEffect(() => {
-    loadKey<Persisted>("state").then((saved) => {
+    // arquivo ilegível não pode prender o launcher na tela de carregamento: segue com o padrão
+    loadKey<Persisted>("state")
+      .catch(() => undefined)
+      .then((saved) => {
       if (saved) {
         const unlocks = saved.unlocks ?? {};
         const settings = migrateSettings(saved.settings);
@@ -234,12 +253,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
       }
       setReady(true);
-    });
+      });
   }, []);
 
   // salva a cada mudança, depois de carregado
   useEffect(() => {
-    if (ready) void saveKey("state", state);
+    if (ready) void saveKey("state", state).catch(() => {});
   }, [state, ready]);
 
   // Catálogo remoto (GitHub Pages do gg77-builds): jogo novo e arte nova sem reinstalar o launcher.
@@ -287,7 +306,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (u: Unlock): Described => {
       const def = defsFor(u.gameId).find((d) => d.id === u.id);
       const game = games.find((g) => g.id === u.gameId);
-      const rule = def?.icon || u.icon ? undefined : game?.iconRules?.find((r) => new RegExp(r.match).test(u.id));
+      const rule = def?.icon || u.icon ? undefined : game?.iconRules?.find((r) => matches(r.match, u.id));
       return {
         title: def?.title ?? u.title ?? u.id,
         description: def?.description ?? u.description ?? "",
@@ -385,6 +404,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const installPackage = useCallback(
     async (game: Game) => {
       if (!game.package) return false;
+      // já tem instalação, verificação ou remoção deste jogo em andamento
+      if (packagesRef.current[game.id]?.busy) return false;
       patchPkg(game.id, { busy: "install", message: undefined, progress: undefined });
       try {
         await installGame(game.id, game.package.manifest);
@@ -404,10 +425,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       patchPkg(game.id, { busy: "uninstall", message: undefined });
       try {
         await uninstallGame(game.id);
-      } finally {
         patchPkg(game.id, { busy: undefined });
-        await refreshPackage(game);
+      } catch (e) {
+        patchPkg(game.id, { busy: undefined, message: String(e) });
       }
+      await refreshPackage(game);
     },
     [patchPkg, refreshPackage],
   );
@@ -419,7 +441,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const bad = await verifyGame(game.id);
         patchPkg(game.id, {
           busy: undefined,
-          message: bad.length ? `${bad.length} arquivo(s) alterado(s) ou faltando. Reinstale o jogo.` : "Arquivos conferidos: tudo certo.",
+          message: bad.length ? `${bad.length} arquivo(s) alterado(s) ou faltando. Desinstale e instale o jogo de novo.` : "Arquivos conferidos: tudo certo.",
         });
       } catch (e) {
         patchPkg(game.id, { busy: undefined, message: String(e) });
@@ -434,6 +456,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     for (const g of games) void refreshPackage(g);
   }, [ready, games, refreshPackage]);
 
+  // o launcher costuma ficar aberto por dias: procura versão nova dos jogos de tempos em tempos
+  useEffect(() => {
+    if (!ready) return;
+    const t = window.setInterval(() => {
+      for (const g of gamesRef.current) if (!packagesRef.current[g.id]?.busy) void refreshPackage(g);
+    }, PACKAGE_CHECK_MS);
+    return () => window.clearInterval(t);
+  }, [ready, refreshPackage]);
+
   const play = useCallback(
     async (game: Game) => {
       if (game.package && "__TAURI_INTERNALS__" in window) {
@@ -441,6 +472,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (st?.installed) {
           await launchInstalledGame(game.id, game.title);
           return;
+        }
+        // a consulta do pacote ainda não voltou (depende da rede): tenta abrir o que já está
+        // instalado em vez de baixar o jogo de novo. Sem instalação o comando falha e segue.
+        if (st?.installed === undefined) {
+          const opened = await launchInstalledGame(game.id, game.title).then(
+            () => true,
+            () => false,
+          );
+          if (opened) return;
         }
         // manifesto fora do ar e o jogo ainda tem endereço web: usa a versão web enquanto isso
         if (!(st?.error && game.url)) {
@@ -463,7 +503,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateRef = useRef<(gameId: string) => void>(() => {});
   updateRef.current = async (gameId: string) => {
     const game = gamesRef.current.find((g) => g.id === gameId);
-    if (!game?.package) return;
+    if (!game?.package || packagesRef.current[gameId]?.busy) return;
+    // só fecha o jogo se o manifesto já tem versão nova; se ainda não tem (cache do servidor),
+    // fechar, reinstalar e abrir a mesma versão faria o jogo pedir atualização de novo, sem fim
+    const st = await checkGame(game.id, game.package.manifest).catch(() => null);
+    if (st) patchPkg(game.id, st);
+    if (!st?.updateAvailable) return;
     await closeGame(gameId);
     if (await installPackage(game)) await launchInstalledGame(game.id, game.title);
   };
