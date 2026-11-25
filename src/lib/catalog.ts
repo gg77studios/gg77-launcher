@@ -12,6 +12,7 @@ const CORRE_BANNERS = "/games/corre/banners/";
 const IDLE_AVATARS = "/games/idle-legends/avatars/";
 const TRIBOS_AVATARS = "/games/tribos/avatars/";
 const CORRE_AVATARS = "/games/corre/avatars/";
+const DAWNKEEP_ICONS = "/games/dawnkeep/achievements/";
 
 /** Jogos que já vêm no launcher. Para adicionar um novo jogo do grupo, inclua aqui. */
 export const CATALOG: Game[] = [
@@ -209,6 +210,32 @@ export const CATALOG: Game[] = [
       { id: "esquina", title: "Esquina ao entardecer", image: `${CORRE_BANNERS}esquina.jpg`, unlock: "primeiro-dia" },
       { id: "balcao", title: "Atrás do balcão", image: `${CORRE_BANNERS}balcao.jpg`, unlock: "mes-no-verde" },
     ],
+  },
+  {
+    id: "dawnkeep",
+    title: "Dawnkeep",
+    // só roda instalado pelo launcher; o servidor exige a conta GG77 (token do hub) e guarda o XP
+    url: "",
+    package: { manifest: "https://github.com/gg77studios/gg77-builds/releases/download/catalog/dawnkeep.json" },
+    cover: "/games/dawnkeep/cover.jpg",
+    banner: "/games/dawnkeep/banner.jpg",
+    icon: "/games/dawnkeep/icon.png",
+    tint: "#1d2440",
+    tagline: "Tower defense cooperativo de zumbis para até 4: segure o refúgio à noite, erga a vila de dia.",
+    // ícones: sprites do próprio jogo em medalhas (pixel art desenhada em código; tools/catalog-art.cjs no repositório do jogo)
+    pixelArt: true,
+    // O jogo manda estas conquistas pelo SDK (client/src/launcher.ts no repositório do jogo).
+    achievements: withIcons(DAWNKEEP_ICONS, ".png", [
+      { id: "primeira-noite", title: "Amanheceu", description: "Sobreviva à primeira noite.", tier: "comum" },
+      { id: "levanta", title: "Ninguém fica para trás", description: "Tenha um aliado caído levantado pelo time.", tier: "comum" },
+      { id: "carona", title: "Sobe aí", description: "Dê carona a um sobrevivente na estrada.", tier: "comum" },
+      { id: "noite-10", title: "Dez noites", description: "Sobreviva a 10 noites numa partida.", tier: "rara" },
+      { id: "colosso", title: "Caiu o Colosso", description: "Derrote um Colosso.", tier: "rara" },
+      { id: "vila-completa", title: "Vila de pé", description: "Tenha os 6 prédios da vila de pé ao mesmo tempo.", tier: "rara" },
+      { id: "pe-na-estrada", title: "Pé na estrada", description: "Limpe uma região e parta com o caminhão.", tier: "rara" },
+      { id: "resgate", title: "O resgate chegou", description: "Limpe as regiões e vença a partida.", tier: "épica" },
+      { id: "brutal", title: "Osso duro", description: "Vença na dificuldade Brutal.", tier: "épica", hidden: true },
+    ]),
   },
 ];
 
